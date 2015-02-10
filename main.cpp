@@ -13,6 +13,8 @@ int main(int argc, char* argv[])
 	}
 	std::fstream inputFile;
 	inputFile.open(argv[1], std::fstream::in);
+	std::stringstream ss;
+	ss << inputFile.rdbuf();
 	if(!inputFile.is_open()){
 		std::cerr << "Error: File does not exist." << std::endl;
 		exit(1);
@@ -32,7 +34,7 @@ int main(int argc, char* argv[])
 	tokenFlagStringMap[LexicalAnalyzer::ERROR] = "ERROR";
 	tokenFlagStringMap[LexicalAnalyzer::END_OF_INPUT] = "EOL"; //for debugging
 
-	lex.setInput(inputFile);
+	lex.setInput(ss.str());
 	while(!lex.eof()){
 		std::string token = lex.getNextToken();
 
