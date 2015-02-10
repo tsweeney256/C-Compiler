@@ -12,8 +12,7 @@ class LexicalAnalyzer
 public:
 	LexicalAnalyzer();
 	~LexicalAnalyzer();
-	//needed to temporarily break this function in order to support printing the current line for project 1
-	//void setInput(const std::string& input);
+	void setInput(const std::string& input);
 	void setInput(std::istream& input);
 	std::string getNextToken();
 	int lastTokenFlag(); //returns one of the enumerated token flags
@@ -54,14 +53,13 @@ private:
     void buildFloatLiteralDFA(DFA& floatLiteral);
     void buildIDDFA(DFA& ID);
 
-    void setInputCommon();
+    void setInputCommon(std::istream* input);
 
 	DFA m_dfa[NUM_DFA];
 
 	std::istream* m_input;
 	std::istringstream* m_strInput;
-	//std::istreambuf_iterator<char> m_inputIter;
-	char m_c; //just needed for project 1. switch back to m_inputIter afterwards
+	std::istreambuf_iterator<char> m_inputIter;
 
 	int m_lastTokenFlag;
 

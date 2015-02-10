@@ -1,6 +1,6 @@
 #include <string>
 #include <iterator>
-#include <iostream> //switch to istream after project 1
+#include <istream>
 #include <sstream>
 #include "DFA.hpp"
 #include "LexicalAnalyzer.hpp"
@@ -26,24 +26,16 @@ LexicalAnalyzer::~LexicalAnalyzer()
 	delete m_strInput;
 }
 
-//void LexicalAnalyzer::setInput(const std::string& input)
-//{
-//	m_strInput->str(input);
-//    setInputCommon();
-//}
+void LexicalAnalyzer::setInput(const std::string& input)
+{
+	m_strInput->str(input);
+    setInputCommon(m_strInput);
+}
 
 void LexicalAnalyzer::setInput(std::istream& input)
 {
     m_input = &input;
-    setInputCommon();
-
-    //just needed for project 1
-    std::string line;
-    std::getline(*m_input, line);
-    std::cout << "INPUT: " << line << std::endl;
-    m_input->clear();
-    m_input->seekg(0, std::ios_base::beg);
-    m_c = m_input->get();
+    setInputCommon(m_input);
 }
 
 std::string LexicalAnalyzer::getNextToken()
@@ -64,19 +56,19 @@ std::string LexicalAnalyzer::getNextToken()
     int lastSawStartCComment = 0;
     int lastSawEndCComment = 2; //just needs to be greater than 1
 
-    while(!m_input->eof()){
+    while(m_inputIter != eof){
         char prevC = 0;
         char prevprevC = 0;
 		int ccommentCounter = 0;
 
         bool somethingDidntReject = true; //I hate do-while loops
-        while(somethingDidntReject && !m_input->eof()){
+        while(somethingDidntReject && m_inputIter != eof){
             somethingDidntReject = false;
 
             for(int i=0; i<NUM_DFA; ++i){
                 if(DFAFlag[i] != DFA::REJECTED){ //no sense in wasting cycles just to have an already rejected DFA tell us it's still rejected
                     prevFlag = DFAFlag[i];
-                    if((DFAFlag[i] = m_dfa[i].feedNextCharacter(m_c)) != DFA::REJECTED){
+                    if((DFAFlag[i] = m_dfa[i].feedNextCharacter(*m_inputIter)) != DFA::REJECTED){
                         somethingDidntReject = true;
                         ++DFACount[i];
                     }
@@ -89,28 +81,17 @@ std::string LexicalAnalyzer::getNextToken()
                 }
             }
             if(somethingDidntReject || maxCount == 0){
-            	//if block just for project 1 that prints out the current line that tokens are being made from
-            	if(m_c == '\n'){
-					std::string line;
-					std::streampos pos = m_input->tellg();
-
-					std::getline(*m_input, line);
-					std::cout << "INPUT: " << line << std::endl;
-					m_input->clear();
-					m_input->seekg(pos);
-				}
 				//to allow for nested C comments
-            	else if(prevC == '/' && m_c == '*' && lastSawEndCComment > 1){
+            	if(prevC == '/' && *m_inputIter == '*' && lastSawEndCComment > 1){
             		++ccommentCounter;
             		lastSawStartCComment = 0;
             	}
 
-                token.append(1, m_c);
+                token.append(1, *m_inputIter);
                 ++maxCount;
-                //++m_inputIter;
+                ++m_inputIter;
                 prevprevC = prevC;
-                prevC = m_c;
-                m_c = m_input->get();
+                prevC = *m_inputIter;
                 ++lastSawStartCComment;
                 ++lastSawEndCComment;
             }
@@ -178,29 +159,12 @@ bool LexicalAnalyzer::eof()
     return m_eof;
 }
 
-void LexicalAnalyzer::setInputCommon()
+void LexicalAnalyzer::setInputCommon(std::istream* input)
 {
+    m_inputIter = input->rdbuf();
     m_lastTokenFlag = -1;
     m_eof = false;
 }
-
-//void LexicalAnalyzer::buildCppCommentDFA(DFA& cppcomment)
-//{
-//	cppcomment.start(1);
-//
-//	cppcomment.add(1, 2, '/');
-//	cppcomment.add(2, 3, '/');
-//	cppcomment.add(3, 4, DFA::ANY);
-//	cppcomment.add(4, 4, DFA::ANY);
-//	cppcomment.add(3, 5, '\r');
-//	cppcomment.add(4, 5, '\r');
-//	cppcomment.add(3, 6, '\n');
-//	cppcomment.add(4, 6, '\n');
-//	cppcomment.add(5, 6, '\n');
-//
-//	cppcomment.accept(5); //\r for old macs
-//	cppcomment.accept(6); //\n for unix and \r\n for windows
-//}
 
 void LexicalAnalyzer::buildCppCommentDFA(DFA& cppcomment)
 {
