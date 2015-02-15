@@ -462,10 +462,9 @@ namespace Parser
         	return true;
         }
 
-        bool annoyingFactor() //var | call;
+        bool annoyingFactor() //call;
         {
-        	if(var()){}
-        	else if(call()){}
+        	if(call()){}
         	else{
         		return false;
         	}
