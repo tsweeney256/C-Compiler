@@ -13,7 +13,7 @@ namespace Parser
 		//flags for match(int id)
 		enum
 		{
-			ID = -100,
+			ID,
 			NUM
 		};
 
@@ -24,7 +24,6 @@ namespace Parser
     	bool declarationList();
     	bool declaration();
     	bool varDeclaration();
-    	bool typeSpecifier();
     	bool funDeclaration();
     	bool params();
     	bool paramList();
@@ -41,19 +40,12 @@ namespace Parser
     	bool var();
     	bool simpleExpression();
     	bool relop();
-    	bool additiveExpression();
     	bool addop();
-    	bool term();
     	bool mulop();
     	bool factor();
     	bool call();
     	bool args();
     	bool argList();
-    	//needed to mostly duplicate some rules to left factor
-    	bool annoyingExpression();
-    	bool annoyingAdditiveExpression();
-    	bool annoyingTerm();
-    	bool annoyingFactor();
 
         std::string currTok;
         LexicalAnalyzer lex;
@@ -114,36 +106,49 @@ namespace Parser
             return true;
         }
 
-        bool declaration() //typeSpecifier, "ID", (varDeclaration | funDeclaration);
+        bool declaration() //(("int" | "float"), "ID", (varDeclaration | funDeclaration)) | ("void", "ID", funDeclaration);
         {
-            if(!(typeSpecifier() && match(ID))){
-            	return false;
+            if(match("int")){
+            	if(!match(ID)){
+            		return false;
+            	}
+            	if(varDeclaration()){}
+            	else if(funDeclaration()){}
+            	else{
+            		return false;
+            	}
             }
-            if(varDeclaration()){}
-            else if(funDeclaration()){}
+            else if(match("float")){
+            	if(!match(ID)){
+            		return false;
+            	}
+            	if(varDeclaration()){}
+            	else if(funDeclaration()){}
+            	else{
+            		return false;
+            	}
+            }
+            else if(match("void")){
+            	if(!(match(ID) && funDeclaration())){
+            		return false;
+            	}
+            }
             else{
             	return false;
             }
             return true;
         }
 
-        bool varDeclaration() //";" | "[NUM];";
+        bool varDeclaration() //["[NUM]"], ";";
         {
             if(match(";")){}
-            else if(match("[") && match(NUM) && match("]") && match(";")){}
-            else{
-                return false;
+            else if(match("[")){
+            	if(!(match(NUM) && match("]") && match(";"))){
+            		return false;
+            	}
             }
-            return true;
-        }
-
-        bool typeSpecifier() //"int" | "void" | "float"
-        {
-            if(match("int")){}
-            else if(match("void")){}
-            else if(match("float")){}
             else{
-                return false;
+            	return false;
             }
             return true;
         }
@@ -151,22 +156,19 @@ namespace Parser
         bool funDeclaration() //"(", params, ")", compoundStmt;
         {
             if(!(match("(") && params() && match(")") && compoundStmt())){
-                return false;
+            	return false;
             }
             return true;
         }
 
-        bool params() //"void" | (",", paramList) | paramList
+        bool params() //paramList | "void";
         {
-        	//(",", paramList) as a hack rule so I don't have to care
-        	//about "void" being the first set of both "void" and paramList
-            if(match("void")){}
-            else if(match(",") && paramList()){}
-            else if(paramList()){}
-            else{
+        	if(paramList()){}
+        	else if(match("void")){}
+        	else{
                 return false;
-            }
-            return true;
+        	}
+        	return true;
         }
 
         bool paramList() //oneParam, {",", oneParam};
@@ -174,23 +176,22 @@ namespace Parser
             if(!oneParam()){
                 return false;
             }
-            bool repeat = true;
-            while(repeat){
-                if(match(",")){
-                    if(!oneParam()){
-                        return false;
-                    }
-                }
-                else{
-                    repeat = false;
+            while(match(",")){
+                if(!oneParam()){
+                    return false;
                 }
             }
             return true;
         }
 
-        bool oneParam() //typeSpecifier, "ID", ["[]"];
+        bool oneParam() //("int" | "float"), "ID", ["[]"];
         {
-            if(!(typeSpecifier() && match(ID))){
+            if(match("int")){}
+            else if(match("float")){}
+            else{
+                return false;
+            }
+            if(!match(ID)){
                 return false;
             }
             if(match("[")){
@@ -210,19 +211,30 @@ namespace Parser
             return true;
         }
 
-        bool localDeclarations() //[{type-specifier, "ID", varDeclaration}];
+        bool localDeclarations() //{("int" | "float"), "ID", varDeclaration};
         {
-        	while(typeSpecifier()){
-        		if(!(match(ID) && varDeclaration())){
-        			return false;
+        	bool isDone = false;
+        	while(!isDone){
+        		if(match("int") || match("float")){
+        			if(!(match(ID) && varDeclaration())){
+        				isDone = true;
+        				return false;
+        			}
+        		}
+        		else{
+        			isDone = true;
         		}
         	}
-            return true;
+        	return true;
         }
 
-        bool stmtList() //{statements}
-        {
-            while(statement()){}
+        bool stmtList() //{statement}
+        { //can be empty, so need to peek at follow set to know if it's supposed to be empty
+            while(currTok.compare("}")){
+            	if(!statement()){
+            		return false;
+            	}
+            }
             return true;
         }
 
@@ -241,9 +253,14 @@ namespace Parser
 
         bool expressionStmt() //[expression], ";";
         {
-            if(expression()){}
-            if(!match(";")){
-                return false;
+            if(match(";")){}
+            else if(expression()){
+            	if(!match(";")){
+            		return false;
+            	}
+            }
+            else{
+            	return false;
             }
             return true;
         }
@@ -283,18 +300,42 @@ namespace Parser
             return true;
         }
 
-        bool expression() //("ID", var, (( "=", expression) | annoyingExpression)) | simpleExpression;
+        bool expression() //("ID", (call, simpleExpression) | (var, ("=", expression) | simpleExpression)) |
+                          //((("(", expression, ")") | "NUM"), simpleExpression);
         {
-            if(match(ID) && var()){
-            	if(match("=") && expression()){}
-            	else if(annoyingExpression()){}
-            	else{
-            		return false;
-            	}
+            if(match(ID)){
+                if(call()){
+                    if(!simpleExpression()){
+                        return false;
+                    }
+                }
+                else if(var()){
+                    if(match("=")){
+                        if(!expression()){
+                            return false;
+                        }
+                    }
+                    else if(simpleExpression()){}
+                    else{
+                        return false;
+                    }
+                }
+                else{
+                    return false;
+                }
             }
-            else if(simpleExpression()){}
+            else if(match("(")){
+                if(!(expression() && match(")") && simpleExpression())){
+                    return false;
+                }
+            }
+            else if(match(NUM)){
+                if(!simpleExpression()){
+                    return false;
+                }
+            }
             else{
-            	return false;
+                return false;
             }
             return true;
         }
@@ -309,15 +350,43 @@ namespace Parser
         	return true;
         }
 
-        bool simpleExpression() //additiveExpression, {relop, additiveExpression};
+        bool simpleExpression() //{mulop, factor}, {addop, factor, {mulop, factor}},
+                                //{relop, factor, {mulop, factor}, {addop, factor, {mulop, factor}}};
         {
-        	if(!additiveExpression()){
-        		return false;
+        	while(mulop()){
+                if(!factor()){
+                    return false;
+                }
+        	}
+        	while(addop()){
+                if(!factor()){
+                    return false;
+                }
+                while(mulop()){
+                    if(!factor()){
+                        return false;
+                    }
+                }
         	}
         	while(relop()){
-        		if(!additiveExpression()){
-        			return false;
-        		}
+                if(!factor()){
+                    return false;
+                }
+                while(mulop()){
+                    if(!factor()){
+                        return false;
+                    }
+                }
+                while(addop()){
+                    if(!factor()){
+                        return false;
+                    }
+                    while(mulop()){
+                        if(!factor()){
+                            return false;
+                        }
+                    }
+                }
         	}
         	return true;
         }
@@ -336,38 +405,12 @@ namespace Parser
         	return true;
         }
 
-        bool additiveExpression() //term, {addop, term};
-        {
-        	if(!term()){
-        		return false;
-        	}
-        	while(addop()){
-        		if(!term()){
-        			return false;
-        		}
-        	}
-        	return true;
-        }
-
         bool addop() //"+" | "-";
         {
         	if(match("+")){}
         	else if(match("-")){}
         	else{
         		return false;
-        	}
-        	return true;
-        }
-
-        bool term() //factor, {mulop, factor};
-        {
-        	if(!factor()){
-        		return false;
-        	}
-        	while(mulop()){
-        		if(!factor()){
-        			return false;
-        		}
         	}
         	return true;
         }
@@ -382,12 +425,19 @@ namespace Parser
         	return true;;
         }
 
-        bool factor() //("(", expression, ")") | "NUM"
+        bool factor() //("(", expression, ")") | ("ID", (var | call)) | "NUM"
         {
         	if(match("(")){
-        		if(!expression() && match(")")){
+        		if(!(expression() && match(")"))){
         			return false;
         		}
+        	}
+        	else if(match(ID)){
+                if(var()){}
+                else if(call()){}
+                else{
+                    return false;
+                }
         	}
         	else if(match(NUM)){}
         	else{
@@ -396,17 +446,21 @@ namespace Parser
         	return true;
         }
 
-        bool call() //"ID(", args, ")";
+        bool call() //"(", args, ")";
         {
-        	if(!match(ID) && match("(") && args() && match(")")){
+        	if(!(match("(") && args() && match(")"))){
         		return false;
         	}
         	return true;
         }
 
-        bool args() //arglist | "empty";
-        {
-        	if(argList()){}
+        bool args() //[arglist];
+        { //arglist can be empty so we have to check for the follow set to make sure that it actually is or not
+        	while(currTok.compare(")")){
+        		if(!argList()){
+        			return false;
+        		}
+        	}
         	return true;
         }
 
@@ -419,54 +473,6 @@ namespace Parser
         		if(!expression()){
         			return false;
         		}
-        	}
-        	return true;
-        }
-
-        bool annoyingExpression() //annoyingAdditiveExpression, {relop, annoyingAdditiveExpression};
-        {
-        	if(!annoyingAdditiveExpression()){
-        		return false;
-        	}
-        	while(relop()){
-        		if(!annoyingAdditiveExpression()){
-        			return false;
-        		}
-        	}
-        	return true;
-        }
-
-        bool annoyingAdditiveExpression() //annoyingTerm, {addop, annoyingTerm};
-        {
-        	if(!annoyingTerm()){
-        		return false;
-        	}
-        	while(addop()){
-        		if(!annoyingTerm()){
-        			return false;
-        		}
-        	}
-        	return true;
-        }
-
-        bool annoyingTerm() //annoyingFactor, {mulop, annoyingFactor};
-        {
-        	if(!annoyingFactor()){
-        		return false;
-        	}
-        	while(mulop()){
-        		if(!annoyingFactor()){
-        			return false;
-        		}
-        	}
-        	return true;
-        }
-
-        bool annoyingFactor() //call;
-        {
-        	if(call()){}
-        	else{
-        		return false;
         	}
         	return true;
         }
