@@ -102,7 +102,11 @@ namespace Parser
             if(!declaration()){
                 return false;
             }
-            while(declaration()){}
+            while(!lex.eof()){
+            	if(!declaration()){
+            		return false;
+            	}
+            }
             return true;
         }
 
@@ -163,7 +167,11 @@ namespace Parser
 
         bool params() //paramList | "void";
         {
-        	if(paramList()){}
+        	if((!currTok.compare("int") || !currTok.compare("float"))){
+        		if(!paramList()){
+        			return false;
+        		}
+        	}
         	else if(match("void")){}
         	else{
                 return false;
@@ -229,7 +237,12 @@ namespace Parser
         }
 
         bool stmtList() //{statement}
-        { //can be empty, so need to peek at follow set to know if it's supposed to be empty
+        {
+        	//instead of checking the next token to predict if it's an error or not, we just leave that to statement() to handle.
+        	//This saves us from having to do redundant comparisons in the event of a well-formed program. The only downside is
+        	//ill-formed programs have to make an extra function call. Whoopty doo.
+
+        	//can be empty, so need to peek at follow set to know if it's supposed to be empty
             while(currTok.compare("}")){
             	if(!statement()){
             		return false;
@@ -240,11 +253,32 @@ namespace Parser
 
         bool statement() //expressionStmt | compoundStmt | selectionStmt | iterationStmt | returnStmt
         {
-            if(expressionStmt()){}
-            else if(compoundStmt()){}
-            else if(selectionStmt()){}
-            else if(iterationStmt()){}
-            else if(returnStmt()){}
+        	if(lex.lastTokenFlag() == LexicalAnalyzer::ID || lex.lastTokenFlag() == LexicalAnalyzer::INT_LITERAL ||
+        			lex.lastTokenFlag() == LexicalAnalyzer::FLOAT_LITERAL || !currTok.compare("(") || !currTok.compare(";")){
+        		if(!expressionStmt()){
+        			return false;
+        		}
+        	}
+        	else if(!currTok.compare("{")){
+        		if(!compoundStmt()){
+        			return false;
+        		}
+        	}
+        	else if(!currTok.compare("if")){
+        		if(!selectionStmt()){
+        			return false;
+        		}
+        	}
+            else if(!currTok.compare("while")){
+            	if(!iterationStmt()){
+            		return false;
+            	}
+            }
+            else if(!currTok.compare("return")){
+            	if(!returnStmt()){
+            		return false;
+            	}
+            }
             else{
                 return false;
             }
