@@ -85,7 +85,6 @@ void SymbolTable::Impl::growTable()
 		delete oldSymTab[i];
 	}
 	delete[] oldSymTab;
-	std::cout << "I ran successfully!" << std::endl;
 }
 
 bool SymbolTable::Impl::add(const std::string& name, int type)
