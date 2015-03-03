@@ -385,7 +385,7 @@ namespace Parser
         }
 
         bool simpleExpression() //{mulop, factor}, {addop, factor, {mulop, factor}},
-                                //{relop, factor, {mulop, factor}, {addop, factor, {mulop, factor}}};
+                                //[relop, factor, {mulop, factor}, {addop, factor, {mulop, factor}}];
         {
         	while(mulop()){
                 if(!factor()){
@@ -402,7 +402,7 @@ namespace Parser
                     }
                 }
         	}
-        	while(relop()){
+        	if(relop()){
                 if(!factor()){
                     return false;
                 }
