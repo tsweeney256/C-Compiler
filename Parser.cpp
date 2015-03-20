@@ -467,8 +467,8 @@ namespace Parser
         		}
         	}
         	else if(match(ID)){
-                if(var()){}
-                else if(call()){}
+                if(call()){}
+                else if(var()){}
                 else{
                     return false;
                 }
