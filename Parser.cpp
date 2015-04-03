@@ -23,6 +23,7 @@ namespace Parser
 
     	bool match(const std::string& str);
     	bool match(int flag);
+    	int peekInSymTabList(const std::string& name);
 
     	bool program();
     	bool declarationList();
@@ -52,7 +53,12 @@ namespace Parser
     	bool argList();
 
         std::string currTok;
+        std::string nameDecl;
         LexicalAnalyzer lex;
+        std::list<SymbolTable*> symTabList;
+        bool semanticError = false;
+        bool funDeclScope = false;
+        int baseType = -1;
 
         bool match(const std::string& str)
         {
@@ -84,6 +90,19 @@ namespace Parser
         	currTok = lex.getNextToken();
         	return true;
         }
+
+        int peekInSymTabList(const std::string& name)
+		{
+			int flag = -1;
+			for(std::list<SymbolTable*>::const_reverse_iterator it = symTabList.rbegin(); it != symTabList.rend(); ++it){
+				if((flag = (*it)->peek(name)) != SymbolTable::NOT_FOUND){
+					return flag;
+				}
+			}
+			semanticError = true;
+			return SymbolTable::NOT_FOUND;
+
+		}
 
         bool program() //declarationList;
         {
@@ -117,6 +136,8 @@ namespace Parser
         bool declaration() //(("int" | "float"), "ID", (varDeclaration | funDeclaration)) | ("void", "ID", funDeclaration);
         {
             if(match("int")){
+            	baseType = SymbolTable::INT;
+            	nameDecl = currTok;
             	if(!match(ID)){
             		return false;
             	}
@@ -127,6 +148,8 @@ namespace Parser
             	}
             }
             else if(match("float")){
+            	baseType = SymbolTable::FLOAT;
+            	nameDecl = currTok;
             	if(!match(ID)){
             		return false;
             	}
@@ -137,6 +160,7 @@ namespace Parser
             	}
             }
             else if(match("void")){
+            	nameDecl = currTok;
             	if(!(match(ID) && funDeclaration())){
             		return false;
             	}
@@ -149,10 +173,31 @@ namespace Parser
 
         bool varDeclaration() //["[NUM]"], ";";
         {
-            if(match(";")){}
+            if(match(";")){
+            	if(baseType == SymbolTable::INT){
+            		if(!(*symTabList.rbegin())->add(nameDecl, SymbolTable::INT)){
+            			semanticError = true;
+            		}
+            	}
+            	else if(baseType == SymbolTable::FLOAT){
+            		if(!(*symTabList.rbegin())->add(nameDecl, SymbolTable::FLOAT)){
+            			semanticError = true;
+            		}
+            	}
+            }
             else if(match("[")){
             	if(!(match(NUM) && match("]") && match(";"))){
             		return false;
+            	}
+            	if(baseType == SymbolTable::INT){
+            		if(!(*symTabList.rbegin())->add(nameDecl, SymbolTable::INT_ARRAY)){
+            			semanticError = true;
+            		}
+            	}
+            	else if(baseType == SymbolTable::FLOAT){
+            		if(!(*symTabList.rbegin())->add(nameDecl, SymbolTable::FLOAT_ARRAY)){
+            			semanticError = true;
+            		}
             	}
             }
             else{
@@ -163,6 +208,9 @@ namespace Parser
 
         bool funDeclaration() //"(", params, ")", compoundStmt;
         {
+        	if(!(*symTabList.rbegin())->add(nameDecl, baseType)){
+				semanticError = true;
+			}
             if(!(match("(") && params() && match(")") && compoundStmt())){
             	return false;
             }
@@ -171,6 +219,8 @@ namespace Parser
 
         bool params() //paramList | "void";
         {
+        	funDeclScope = true;
+        	symTabList.push_back(new SymbolTable());
         	if((!currTok.compare("int") || !currTok.compare("float"))){
         		if(!paramList()){
         			return false;
@@ -198,11 +248,16 @@ namespace Parser
 
         bool oneParam() //("int" | "float"), "ID", ["[]"];
         {
-            if(match("int")){}
-            else if(match("float")){}
+            if(match("int")){
+            	baseType = SymbolTable::INT;
+            }
+            else if(match("float")){
+            	baseType = SymbolTable::FLOAT;
+            }
             else{
                 return false;
             }
+            nameDecl = currTok;
             if(!match(ID)){
                 return false;
             }
@@ -210,28 +265,67 @@ namespace Parser
                 if(!match("]")){
                     return false;
                 }
+                if(baseType == SymbolTable::INT){
+                	if(!(*symTabList.rbegin())->add(nameDecl, SymbolTable::INT_ARRAY)){
+                		semanticError = true;
+                	}
+                }
+                else if(baseType == SymbolTable::FLOAT){
+                	if(!(*symTabList.rbegin())->add(nameDecl, SymbolTable::FLOAT_ARRAY)){
+                		semanticError = true;
+                	}
+                }
+            }
+            else if(baseType == SymbolTable::INT){
+            	if(!(*symTabList.rbegin())->add(nameDecl, SymbolTable::INT)){
+					semanticError = true;
+				}
+            }
+            else if(baseType == SymbolTable::FLOAT){
+            	if(!(*symTabList.rbegin())->add(nameDecl, SymbolTable::FLOAT)){
+					semanticError = true;
+				}
             }
             return true;
         }
 
         bool compoundStmt() //"{", localDeclarations, stmtList, "}";
         {
+        	if(!funDeclScope){
+        		symTabList.push_back(new SymbolTable());
+        	}
+        	else{
+        		funDeclScope = false;
+        	}
             if(match("{") && localDeclarations() && stmtList() && match("}")){}
             else{
                 return false;
             }
+            delete *symTabList.rbegin();
+            symTabList.pop_back();
             return true;
         }
 
         bool localDeclarations() //{("int" | "float"), "ID", varDeclaration};
         {
+        	//sure would be nice to use a closure to get rid of this code duplication...
         	bool isDone = false;
         	while(!isDone){
-        		if(match("int") || match("float")){
+        		if(match("int")){
+        			baseType = SymbolTable::INT;
+        			nameDecl = currTok;
         			if(!(match(ID) && varDeclaration())){
         				isDone = true;
         				return false;
         			}
+        		}
+        		else if(match("float")){
+        			baseType = SymbolTable::FLOAT;
+        			nameDecl = currTok;
+        			if(!(match(ID) && varDeclaration())){
+						isDone = true;
+						return false;
+					}
         		}
         		else{
         			isDone = true;
@@ -341,7 +435,11 @@ namespace Parser
         bool expression() //("ID", (call, simpleExpression) | (var, ("=", expression) | simpleExpression)) |
                           //((("(", expression, ")") | "NUM"), simpleExpression);
         {
+        	nameDecl = currTok;
             if(match(ID)){
+            	if(peekInSymTabList(nameDecl) == SymbolTable::NOT_FOUND){
+					semanticError = true;
+				}
                 if(call()){
                     if(!simpleExpression()){
                         return false;
@@ -465,12 +563,16 @@ namespace Parser
 
         bool factor() //("(", expression, ")") | ("ID", (var | call)) | "NUM"
         {
+        	nameDecl = currTok; //might possibly be an ID
         	if(match("(")){
         		if(!(expression() && match(")"))){
         			return false;
         		}
         	}
         	else if(match(ID)){
+        		if(peekInSymTabList(currTok) == SymbolTable::NOT_FOUND){
+					semanticError = true;
+				}
                 if(call()){}
                 else if(var()){}
                 else{
@@ -520,11 +622,14 @@ namespace Parser
 	{
 		lex.setInput(input);
 		currTok = lex.getNextToken();
-	    if(program()){
-	    	return true;
+		symTabList.push_back(new SymbolTable());
+	    if(program() && !semanticError){
+	    	delete *symTabList.rbegin();
+	    	symTabList.pop_back();
+	    	return new Tree<SyntaxInfo>(); //CHANGE THIS!!!!!
 	    }
 	    else{
-	    	return false;
+	    	return NULL;
 	    }
 	}
 }

@@ -2,9 +2,15 @@
 #define PARSER_HPP
 
 #include <istream>
+#include "SyntaxInfo.hpp"
+
+template<typename T>
+class Tree;
+
+
 
 namespace Parser
 {
-    bool parse(std::istream& input);
+    Tree<SyntaxInfo>* parse(std::istream& input);
 }
 #endif // PARSER_HPP
