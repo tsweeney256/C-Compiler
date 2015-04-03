@@ -1,8 +1,12 @@
 #include <iostream>
 #include <string>
+#include <list>
 #include <cstdlib>
 #include "Parser.hpp"
 #include "LexicalAnalyzer.hpp"
+#include "SymbolTable.hpp"
+#include "Tree.hpp"
+#include "SyntaxInfo.hpp"
 
 //making a "static class" through a namespace makes it less useful
 //for multi-core programs, but eh. I'm just doing it for practice.
@@ -512,7 +516,7 @@ namespace Parser
         }
     }
 
-	bool parse(std::istream& input)
+	Tree<SyntaxInfo>* parse(std::istream& input)
 	{
 		lex.setInput(input);
 		currTok = lex.getNextToken();
