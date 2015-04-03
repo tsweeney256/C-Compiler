@@ -146,7 +146,7 @@ bool SymbolTable::add(const std::string& name, int type)
 	return pimpl->add(name, type);
 }
 
-int SymbolTable::peek(const std::string& name)
+int SymbolTable::peek(const std::string& name) const
 {
 	return pimpl->peek(name);
 }

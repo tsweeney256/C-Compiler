@@ -54,9 +54,11 @@ struct SyntaxInfo
 	//type flags
 	enum
 	{
+		VOID,
 		INT,
 		FLOAT,
-		VOID
+		INT_ARRAY,
+		FLOAT_ARRAY
 	};
 };
 
