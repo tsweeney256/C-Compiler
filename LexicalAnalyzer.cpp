@@ -151,12 +151,12 @@ std::string LexicalAnalyzer::getNextToken()
     return token;
 }
 
-int LexicalAnalyzer::lastTokenFlag()
+int LexicalAnalyzer::lastTokenFlag() const
 {
     return m_lastTokenFlag;
 }
 
-bool LexicalAnalyzer::eof()
+bool LexicalAnalyzer::eof() const
 {
     return m_eof;
 }

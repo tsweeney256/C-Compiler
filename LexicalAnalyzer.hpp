@@ -16,8 +16,8 @@ public:
 	void setInput(const std::string& input);
 	void setInput(std::istream& input);
 	std::string getNextToken();
-	int lastTokenFlag(); //returns one of the enumerated token flags
-	bool eof();
+	int lastTokenFlag() const; //returns one of the enumerated token flags
+	bool eof() const;
 
 	//token flags
 	enum
