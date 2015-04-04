@@ -19,6 +19,7 @@ LexicalAnalyzer::LexicalAnalyzer()
 	buildIDDFA(m_dfa[DFA_ID]);
 
 	m_strInput = new std::istringstream;
+	m_numLine = 1;
 }
 
 LexicalAnalyzer::~LexicalAnalyzer()
@@ -94,6 +95,9 @@ std::string LexicalAnalyzer::getNextToken()
                 prevprevC = prevC;
                 prevC = m_c;
                 m_c = m_input->get();
+                if(m_c == '\n'){
+                	++m_numLine;
+                }
                 ++lastSawStartCComment;
                 ++lastSawEndCComment;
             }
@@ -154,6 +158,11 @@ std::string LexicalAnalyzer::getNextToken()
 int LexicalAnalyzer::lastTokenFlag() const
 {
     return m_lastTokenFlag;
+}
+
+size_t LexicalAnalyzer::getCurrLine() const
+{
+	return m_numLine;
 }
 
 bool LexicalAnalyzer::eof() const

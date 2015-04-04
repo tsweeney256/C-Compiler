@@ -17,6 +17,7 @@ public:
 	void setInput(std::istream& input);
 	std::string getNextToken();
 	int lastTokenFlag() const; //returns one of the enumerated token flags
+	size_t getCurrLine() const;
 	bool eof() const;
 
 	//token flags
@@ -61,9 +62,8 @@ private:
 	std::istream* m_input;
 	std::istringstream* m_strInput;
 	char m_c;
-
 	int m_lastTokenFlag;
-
+	int m_numLine;
 	bool m_eof;
 };
 
