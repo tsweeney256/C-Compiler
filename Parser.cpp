@@ -725,7 +725,7 @@ namespace Parser
 		exprType.push_back(std::vector<std::vector<int> >());
 	    if(program() && !semanticError){
 	    	delete *symTabList.begin();
-	    	return new (Tree<SyntaxInfo>()); //CHANGE THIS!!!!!
+	    	return new Tree<SyntaxInfo>(); //CHANGE THIS!!!!!
 	    }
 	    else{
 	    	//need to make sure to delete the symbol table for all scopes in case of incorrect number of brackets
