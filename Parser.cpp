@@ -197,6 +197,12 @@ namespace Parser
         		}
             }
             else if(match("[")){
+            	if(!currTok.compare("0")){
+            		semanticError = true;
+            		if(showingErrorMsgs){
+            			std::cout << "Error:" << lastLineNum << ": Array declaration must have more than 0 elements" << std::endl;
+            		}
+            	}
             	if(!(match(NUM) && match("]") && match(";"))){
             		return false;
             	}
