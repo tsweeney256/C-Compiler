@@ -567,6 +567,13 @@ namespace Parser
         		exprTypeLevel.pop_back();
         		exprType.pop_back();
         	}
+        	else if(exprType.back().back().back() == SymbolTable::INT_ARRAY ||
+        			exprType.back().back().back() == SymbolTable::FLOAT_ARRAY){
+        		semanticError= true;
+        		if(showingErrorMsgs){
+        			std::cout << "Error:" << lastLineNum << ": Trying to use array without indexing it." << std::endl;
+        		}
+        	}
         	return true;
         }
 
