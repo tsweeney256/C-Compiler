@@ -64,7 +64,6 @@ namespace Parser
         bool showingErrorMsgs;
         bool semanticError = false;
         bool funDeclScope = false;
-        bool idxExpr = false;
         //turned off in var() and call()
         //turned on in expression() and factor()
 
