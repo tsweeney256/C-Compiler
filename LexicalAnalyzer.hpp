@@ -12,11 +12,10 @@ class LexicalAnalyzer
 public:
 	LexicalAnalyzer();
 	~LexicalAnalyzer();
-	//needed to temporarily break this function in order to support printing the current line for project 1
 	void setInput(const std::string& input);
 	void setInput(std::istream& input);
 	std::string getNextToken();
-	int lastTokenFlag() const; //returns one of the enumerated token flags
+	int getCurrTokenFlag() const; //returns one of the enumerated token flags
 	size_t getCurrLine() const;
 	bool eof() const;
 

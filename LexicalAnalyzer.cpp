@@ -155,7 +155,7 @@ std::string LexicalAnalyzer::getNextToken()
     return token;
 }
 
-int LexicalAnalyzer::lastTokenFlag() const
+int LexicalAnalyzer::getCurrTokenFlag() const
 {
     return m_lastTokenFlag;
 }
