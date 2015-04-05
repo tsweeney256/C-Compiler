@@ -11,6 +11,6 @@ class Tree;
 
 namespace Parser
 {
-    Tree<SyntaxInfo>* parse(std::istream& input);
+    Tree<SyntaxInfo>* parse(std::istream& input, bool showErrorMsgs = false);
 }
 #endif // PARSER_HPP

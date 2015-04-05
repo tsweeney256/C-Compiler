@@ -52,19 +52,29 @@ namespace Parser
     	bool args();
     	bool argList();
 
+    	LexicalAnalyzer lex;
         std::string currTok;
         std::string nameDecl;
-        LexicalAnalyzer lex;
         std::list<SymbolTable*> symTabList;
+        std::vector<std::vector<std::vector<int> > > exprType; //3dpd
+        std::vector<int> exprTypeLevel; //initialized to one int of -1 in parse()
+        int baseType = -1;
+        int lastTokFlag = -1;
+        size_t lastLineNum = 0;
+        bool showingErrorMsgs;
         bool semanticError = false;
         bool funDeclScope = false;
-        int baseType = -1;
+        bool idxExpr = false;
+        //turned off in var() and call()
+        //turned on in expression() and factor()
 
         bool match(const std::string& str)
         {
         	if(str.compare(currTok)){
         		return false;
         	}
+        	lastLineNum = lex.getCurrLine();
+        	lastTokFlag = lex.getCurrTokenFlag();
         	currTok = lex.getNextToken();
         	return true;
         }
@@ -72,13 +82,13 @@ namespace Parser
         bool match(int flag)
         {
         	if(flag == ID){
-        		if(lex.lastTokenFlag() != LexicalAnalyzer::ID){
+        		if(lex.getCurrTokenFlag() != LexicalAnalyzer::ID){
         			return false;
         		}
         	}
         	else if(flag == NUM){
-        		if(!(lex.lastTokenFlag() == LexicalAnalyzer::INT_LITERAL ||
-        				lex.lastTokenFlag() == LexicalAnalyzer::FLOAT_LITERAL)){
+        		if(!(lex.getCurrTokenFlag() == LexicalAnalyzer::INT_LITERAL ||
+        				lex.getCurrTokenFlag() == LexicalAnalyzer::FLOAT_LITERAL)){
         			return false;
         		}
         	}
@@ -86,7 +96,8 @@ namespace Parser
         		std::cerr << "Error: Incorrect flag given" << std::endl;
         		exit(1);
         	}
-
+        	lastLineNum = lex.getCurrLine();
+        	lastTokFlag = lex.getCurrTokenFlag();
         	currTok = lex.getNextToken();
         	return true;
         }
@@ -99,7 +110,6 @@ namespace Parser
 					return flag;
 				}
 			}
-			semanticError = true;
 			return SymbolTable::NOT_FOUND;
 
 		}
@@ -111,6 +121,12 @@ namespace Parser
         	}
             if(!declarationList()){
                 return false;
+            }
+            else if((*symTabList.begin())->peek("main") == SymbolTable::NOT_FOUND){
+            	if(showingErrorMsgs){
+            		std::cout << "Error:" << lastLineNum << ": main function not found." << std::endl;
+            	}
+            	semanticError = true;
             }
             if(lex.eof()){
             	return true;
@@ -160,6 +176,7 @@ namespace Parser
             	}
             }
             else if(match("void")){
+            	baseType = SymbolTable::VOID;
             	nameDecl = currTok;
             	if(!(match(ID) && funDeclaration())){
             		return false;
@@ -173,17 +190,12 @@ namespace Parser
 
         bool varDeclaration() //["[NUM]"], ";";
         {
+        	bool duplicateDecl = false;
+
             if(match(";")){
-            	if(baseType == SymbolTable::INT){
-            		if(!(*symTabList.rbegin())->add(nameDecl, SymbolTable::INT)){
-            			semanticError = true;
-            		}
-            	}
-            	else if(baseType == SymbolTable::FLOAT){
-            		if(!(*symTabList.rbegin())->add(nameDecl, SymbolTable::FLOAT)){
-            			semanticError = true;
-            		}
-            	}
+            	if(!(*symTabList.rbegin())->add(nameDecl, baseType)){
+            		duplicateDecl = true;
+        		}
             }
             else if(match("[")){
             	if(!(match(NUM) && match("]") && match(";"))){
@@ -191,17 +203,23 @@ namespace Parser
             	}
             	if(baseType == SymbolTable::INT){
             		if(!(*symTabList.rbegin())->add(nameDecl, SymbolTable::INT_ARRAY)){
-            			semanticError = true;
+            			duplicateDecl = true;
             		}
             	}
             	else if(baseType == SymbolTable::FLOAT){
             		if(!(*symTabList.rbegin())->add(nameDecl, SymbolTable::FLOAT_ARRAY)){
-            			semanticError = true;
+            			duplicateDecl = true;
             		}
             	}
             }
             else{
             	return false;
+            }
+            if(duplicateDecl){
+            	semanticError = true;
+            	if(showingErrorMsgs){
+            		std::cout << "Error:" << lastLineNum << ": '" << nameDecl << "' declared multiple times in the same scope." << std::endl;
+            	}
             }
             return true;
         }
@@ -210,6 +228,9 @@ namespace Parser
         {
         	if(!(*symTabList.rbegin())->add(nameDecl, baseType)){
 				semanticError = true;
+				if(showingErrorMsgs){
+					std::cout << "Error:" << lastLineNum << ": '" << nameDecl << "' declared multiple times in the same scope." << std::endl;
+				}
 			}
             if(!(match("(") && params() && match(")") && compoundStmt())){
             	return false;
@@ -248,6 +269,8 @@ namespace Parser
 
         bool oneParam() //("int" | "float"), "ID", ["[]"];
         {
+        	bool duplicateDecl = false;
+
             if(match("int")){
             	baseType = SymbolTable::INT;
             }
@@ -267,24 +290,23 @@ namespace Parser
                 }
                 if(baseType == SymbolTable::INT){
                 	if(!(*symTabList.rbegin())->add(nameDecl, SymbolTable::INT_ARRAY)){
-                		semanticError = true;
+                		duplicateDecl = true;
                 	}
                 }
                 else if(baseType == SymbolTable::FLOAT){
                 	if(!(*symTabList.rbegin())->add(nameDecl, SymbolTable::FLOAT_ARRAY)){
-                		semanticError = true;
+                		duplicateDecl = true;
                 	}
                 }
             }
-            else if(baseType == SymbolTable::INT){
-            	if(!(*symTabList.rbegin())->add(nameDecl, SymbolTable::INT)){
-					semanticError = true;
-				}
-            }
-            else if(baseType == SymbolTable::FLOAT){
-            	if(!(*symTabList.rbegin())->add(nameDecl, SymbolTable::FLOAT)){
-					semanticError = true;
-				}
+            if(!(*symTabList.rbegin())->add(nameDecl, baseType)){
+            	duplicateDecl = true;
+			}
+            if(duplicateDecl){
+            	semanticError = true;
+            	if(showingErrorMsgs){
+            		std::cout << "Error:" << lastLineNum << " '" << nameDecl << "' declared multiple times in parameter list." << std::endl;
+            	}
             }
             return true;
         }
@@ -351,8 +373,8 @@ namespace Parser
 
         bool statement() //expressionStmt | compoundStmt | selectionStmt | iterationStmt | returnStmt
         {
-        	if(lex.lastTokenFlag() == LexicalAnalyzer::ID || lex.lastTokenFlag() == LexicalAnalyzer::INT_LITERAL ||
-        			lex.lastTokenFlag() == LexicalAnalyzer::FLOAT_LITERAL || !currTok.compare("(") || !currTok.compare(";")){
+        	if(lex.getCurrTokenFlag() == LexicalAnalyzer::ID || lex.getCurrTokenFlag() == LexicalAnalyzer::INT_LITERAL ||
+        			lex.getCurrTokenFlag() == LexicalAnalyzer::FLOAT_LITERAL || !currTok.compare("(") || !currTok.compare(";")){
         		if(!expressionStmt()){
         			return false;
         		}
@@ -435,11 +457,21 @@ namespace Parser
         bool expression() //("ID", (call, simpleExpression) | (var, ("=", expression) | simpleExpression)) |
                           //((("(", expression, ")") | "NUM"), simpleExpression);
         {
+        	int idType = -1;
+
+        	++exprTypeLevel.back();
+			exprType.back().push_back(std::vector<int>());
         	nameDecl = currTok;
             if(match(ID)){
-            	if(peekInSymTabList(nameDecl) == SymbolTable::NOT_FOUND){
+            	if((idType = peekInSymTabList(nameDecl)) == SymbolTable::NOT_FOUND){
 					semanticError = true;
+					if(showingErrorMsgs){
+						std::cout << "Error:" << lastLineNum << ": '" << nameDecl << "' not found." << std::endl;
+					}
 				}
+            	else{
+            		exprType.back().back().push_back(idType);
+            	}
                 if(call()){
                     if(!simpleExpression()){
                         return false;
@@ -466,6 +498,9 @@ namespace Parser
                 }
             }
             else if(match(NUM)){
+            	if(lastTokFlag == LexicalAnalyzer::FLOAT_LITERAL){
+            		exprType.back().back().push_back(SymbolTable::FLOAT);
+            	}
                 if(!simpleExpression()){
                     return false;
                 }
@@ -473,15 +508,65 @@ namespace Parser
             else{
                 return false;
             }
+            if(exprTypeLevel.back() == 0){
+            	int theType;
+            	if(exprType.size() == 1){
+            		theType = exprType[0][0][0];
+            	}
+            	else{
+            		theType = SymbolTable::INT;
+            	}
+            	bool done = false;
+            	for(size_t i=0; i<exprType.back().size(); ++i){
+            		for(size_t j=0; j<exprType.back()[i].size(); ++j){
+            			if(exprType.back()[i][j] != theType){
+            				semanticError = true;
+            				if(showingErrorMsgs){
+            					if(exprType.size() == 1){
+            						std::cout << "Error:" << lastLineNum << ": Type mismatch." << std::endl;
+            					}
+            					else{
+            						std::cout << "Error:" << lastLineNum <<": Trying to index array with non-int type." << std::endl;
+            					}
+            					done = true;
+            					break;
+            				}
+            			}
+            		}
+            		if(done){
+            			break;
+            		}
+            	}
+            	exprType.back().clear();
+            }
+            --exprTypeLevel.back();
             return true;
         }
 
         bool var() //["[", expression, "]"];
         {
         	if(match("[")){
+        		exprTypeLevel.push_back(-1);
+				if(exprType.back().back().back() == SymbolTable::INT_ARRAY){
+					exprType.back().back().back() = SymbolTable::INT;
+				}
+				else if(exprType.back().back().back() == SymbolTable::FLOAT_ARRAY){
+					exprType.back().back().back() = SymbolTable::FLOAT;
+				}
+				else{
+					semanticError = true;
+					if(showingErrorMsgs){
+						std::cout << "Error:" << lastLineNum << ": Trying to index non-array type." << std::endl;
+					}
+				}
+				exprType.push_back(std::vector<std::vector<int> >());
         		if(!(expression() && match("]"))){
+        			exprTypeLevel.pop_back();
+        			exprType.pop_back();
         			return false;
         		}
+        		exprTypeLevel.pop_back();
+        		exprType.pop_back();
         	}
         	return true;
         }
@@ -570,16 +655,28 @@ namespace Parser
         		}
         	}
         	else if(match(ID)){
-        		if(peekInSymTabList(currTok) == SymbolTable::NOT_FOUND){
+        		int idType = -1;
+
+        		if((idType = peekInSymTabList(nameDecl)) == SymbolTable::NOT_FOUND){
 					semanticError = true;
+					if(showingErrorMsgs){
+						std::cout << "Error:" << lastLineNum << ": '" << nameDecl << "' not found." << std::endl;
+					}
 				}
+        		else{
+        			exprType.rbegin()->rbegin()->push_back(idType);
+        		}
                 if(call()){}
                 else if(var()){}
                 else{
                     return false;
                 }
         	}
-        	else if(match(NUM)){}
+        	else if(match(NUM)){
+        		if(lastTokFlag == LexicalAnalyzer::FLOAT_LITERAL){
+        			exprType.rbegin()->rbegin()->push_back(SymbolTable::FLOAT);
+				}
+        	}
         	else{
         		return false;
         	}
@@ -588,6 +685,7 @@ namespace Parser
 
         bool call() //"(", args, ")";
         {
+        	if(!currTok.compare("(")){}
         	if(!(match("(") && args() && match(")"))){
         		return false;
         	}
@@ -618,17 +716,23 @@ namespace Parser
         }
     }
 
-	Tree<SyntaxInfo>* parse(std::istream& input)
+	Tree<SyntaxInfo>* parse(std::istream& input, bool errorMsgsEnabled)
 	{
+		showingErrorMsgs = errorMsgsEnabled;
 		lex.setInput(input);
 		currTok = lex.getNextToken();
 		symTabList.push_back(new SymbolTable());
+		exprTypeLevel.push_back(-1);
+		exprType.push_back(std::vector<std::vector<int> >());
 	    if(program() && !semanticError){
-	    	delete *symTabList.rbegin();
-	    	symTabList.pop_back();
+	    	delete *symTabList.begin();
 	    	return new Tree<SyntaxInfo>(); //CHANGE THIS!!!!!
 	    }
 	    else{
+	    	//need to make sure to delete the symbol table for all scopes in case of incorrect number of brackets
+	    	for(std::list<SymbolTable*>::const_reverse_iterator it = symTabList.rbegin(); it != symTabList.rend(); ++it){
+	    		delete *it;
+	    	}
 	    	return NULL;
 	    }
 	}
