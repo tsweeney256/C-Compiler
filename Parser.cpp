@@ -753,12 +753,16 @@ namespace Parser
         	if(!currTok.compare("(")){
         		if(!signature){
         			semanticError = true;
-        			std::cout << "Error:" << lastLineNum << ": '" << nameDecl <<  "' does not refer to a function." << std::endl;
+        			if(showingErrorMsgs){
+        				std::cout << "Error:" << lastLineNum << ": '" << nameDecl <<  "' does not refer to a function." << std::endl;
+        			}
         		}
         	}
         	else if(signature){
     			semanticError = true;
-    			std::cout << "Error:" << lastLineNum << ": '" << nameDecl <<  "' refers to a function. \"()\" required" << std::endl;
+    			if(showingErrorMsgs){
+    				std::cout << "Error:" << lastLineNum << ": '" << nameDecl <<  "' refers to a function. \"()\" required" << std::endl;
+    			}
     		}
         	if(!(match("(") && args() && match(")"))){
         		return false;
@@ -810,7 +814,7 @@ namespace Parser
             	}
         		exprTypeLevel.pop_back();
         	}
-        	if(types.size() != sig->size()){
+        	if(sig && types.size() != sig->size()){
         		semanticError = true;
         		if(showingErrorMsgs){
         			std::cout << "Error:" << lastLineNum << ": call to " << calledFunc << "() has mismatching number of arguments to parameters." << std::endl;
@@ -818,7 +822,7 @@ namespace Parser
         	}
         	else{
         		for(size_t i=0; i<types.size(); ++i){
-        			if(types[i] != (*sig)[i] && !(types[i] == INT_LITERAL && (*sig)[i] == SymbolTable::FLOAT)){
+        			if(sig && (types[i] != (*sig)[i] && !(types[i] == INT_LITERAL && (*sig)[i] == SymbolTable::FLOAT))){
         				semanticError = true;
         				if(showingErrorMsgs){
         					std::cout << "Error:" << lastLineNum << ": call to " << calledFunc << "() has mismatching argument and parameter types." << std::endl;
