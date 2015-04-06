@@ -806,6 +806,7 @@ namespace Parser
         	exprType.pop_back();
         	while(match(",")){
         		exprTypeLevel.push_back(-1);
+        		exprType.push_back(std::vector<std::vector<int> >());
         		if(!expression()){
         			return false;
         		}
@@ -813,6 +814,7 @@ namespace Parser
             		types.push_back(expressionType);
             	}
         		exprTypeLevel.pop_back();
+        		exprType.pop_back();
         	}
         	if(sig && types.size() != sig->size()){
         		semanticError = true;
@@ -822,7 +824,7 @@ namespace Parser
         	}
         	else{
         		for(size_t i=0; i<types.size(); ++i){
-        			if(sig && (types[i] != (*sig)[i] && !(types[i] == INT_LITERAL && (*sig)[i] == SymbolTable::FLOAT))){
+        			if(sig && (types[i] != (*sig)[i] && !(types[i] == INT_LITERAL && ((*sig)[i] == SymbolTable::FLOAT || (*sig)[i] == SymbolTable::INT)))){
         				semanticError = true;
         				if(showingErrorMsgs){
         					std::cout << "Error:" << lastLineNum << ": call to " << calledFunc << "() has mismatching argument and parameter types." << std::endl;
