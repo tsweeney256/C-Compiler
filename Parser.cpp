@@ -750,10 +750,15 @@ namespace Parser
 
         bool call() //"(", args, ")";
         {
-        	if(!currTok.compare("(")){}
+        	if(!currTok.compare("(")){
+        		if(!signature){
+        			semanticError = true;
+        			std::cout << "Error:" << lastLineNum << ": '" << nameDecl <<  "' does not refer to a function." << std::endl;
+        		}
+        	}
         	else if(signature){
     			semanticError = true;
-    			std::cout << "Error:" << lastLineNum << ": " << nameDecl <<  " refers to a function. \"()\" required" << std::endl;
+    			std::cout << "Error:" << lastLineNum << ": '" << nameDecl <<  "' refers to a function. \"()\" required" << std::endl;
     		}
         	if(!(match("(") && args() && match(")"))){
         		return false;
