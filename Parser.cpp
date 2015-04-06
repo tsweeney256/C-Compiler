@@ -266,12 +266,6 @@ namespace Parser
             if(!(match("(") && params() && match(")") && compoundStmt())){
             	return false;
             }
-            if(returnType != funType && !(returnType == INT_LITERAL && (funType == SymbolTable::FLOAT || funType == SymbolTable::INT))){
-            	semanticError = true;
-            	if(showingErrorMsgs){
-            		std::cout << "Error:" << lastLineNum << ": Function type and return type mismatch." << std::endl;
-            	}
-            }
             return true;
         }
 
@@ -498,6 +492,12 @@ namespace Parser
                 else{
                 	returnType = SymbolTable::VOID;
                 }
+                if(returnType != funType && !(returnType == INT_LITERAL && (funType == SymbolTable::FLOAT || funType == SymbolTable::INT))){
+					semanticError = true;
+					if(showingErrorMsgs){
+						std::cout << "Error:" << lastLineNum << ": Function type and return type mismatch." << std::endl;
+					}
+				}
                 if(!match(";")){
                     return false;
                 }
