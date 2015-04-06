@@ -55,10 +55,14 @@ namespace Parser
     	LexicalAnalyzer lex;
         std::string currTok;
         std::string nameDecl;
+        std::string funDecl;
         std::list<SymbolTable*> symTabList;
+        std::vector<int>* sigList = NULL;
+        const std::vector<int>* signature;
         std::vector<std::vector<std::vector<int> > > exprType; //3dpd
         std::vector<int> exprTypeLevel; //initialized to one int of -1 in parse()
         int baseType = -1;
+        int funType = -1;
         int lastTokFlag = -1;
         size_t lastLineNum = 0;
         bool showingErrorMsgs;
@@ -112,6 +116,17 @@ namespace Parser
 			return SymbolTable::NOT_FOUND;
 
 		}
+
+        const std::vector<int>* getSignatureFromSymTabList(const std::string& name)
+        {
+			int flag = -1;
+			for(std::list<SymbolTable*>::const_reverse_iterator it = symTabList.rbegin(); it != symTabList.rend(); ++it){
+				if((flag = (*it)->peek(name)) != SymbolTable::NOT_FOUND){
+					return (*it)->getSignature(name);
+				}
+			}
+			return NULL;
+        }
 
         bool program() //declarationList;
         {
@@ -231,12 +246,9 @@ namespace Parser
 
         bool funDeclaration() //"(", params, ")", compoundStmt;
         {
-        	if(!(*symTabList.rbegin())->add(nameDecl, baseType)){
-				semanticError = true;
-				if(showingErrorMsgs){
-					std::cout << "Error:" << lastLineNum << ": '" << nameDecl << "' declared multiple times in the same scope." << std::endl;
-				}
-			}
+        	funDecl = nameDecl;
+        	funType = baseType;
+        	sigList = new std::vector<int>();
             if(!(match("(") && params() && match(")") && compoundStmt())){
             	return false;
             }
@@ -256,6 +268,12 @@ namespace Parser
         	else{
                 return false;
         	}
+        	if(!symTabList.front()->add(funDecl, funType, sigList)){ //function declarations are always at global scope
+				semanticError = true;
+				if(showingErrorMsgs){
+					std::cout << "Error:" << lastLineNum << ": '" << funDecl << "' declared multiple times in the same scope." << std::endl;
+				}
+			}
         	return true;
         }
 
@@ -294,23 +312,20 @@ namespace Parser
                     return false;
                 }
                 if(baseType == SymbolTable::INT){
-                	if(!(*symTabList.rbegin())->add(nameDecl, SymbolTable::INT_ARRAY)){
-                		duplicateDecl = true;
-                	}
+                	baseType = SymbolTable::INT_ARRAY;
                 }
                 else if(baseType == SymbolTable::FLOAT){
-                	if(!(*symTabList.rbegin())->add(nameDecl, SymbolTable::FLOAT_ARRAY)){
-                		duplicateDecl = true;
-                	}
+                	baseType = SymbolTable::FLOAT_ARRAY;
                 }
             }
             if(!(*symTabList.rbegin())->add(nameDecl, baseType)){
             	duplicateDecl = true;
 			}
+            sigList->push_back(baseType);
             if(duplicateDecl){
             	semanticError = true;
             	if(showingErrorMsgs){
-            		std::cout << "Error:" << lastLineNum << " '" << nameDecl << "' declared multiple times in parameter list." << std::endl;
+            		std::cout << "Error:" << lastLineNum << ": '" << nameDecl << "' declared multiple times in parameter list." << std::endl;
             	}
             }
             return true;
@@ -465,9 +480,9 @@ namespace Parser
         	int idType = -1;
 
         	++exprTypeLevel.back();
-			exprType.back().push_back(std::vector<int>());
         	nameDecl = currTok;
             if(match(ID)){
+            	exprType.back().push_back(std::vector<int>());
             	if((idType = peekInSymTabList(nameDecl)) == SymbolTable::NOT_FOUND){
 					semanticError = true;
 					if(showingErrorMsgs){
@@ -476,6 +491,7 @@ namespace Parser
 				}
             	else{
             		exprType.back().back().push_back(idType);
+            		signature = getSignatureFromSymTabList(nameDecl);
             	}
                 if(call()){
                     if(!simpleExpression()){
@@ -677,6 +693,7 @@ namespace Parser
 				}
         		else{
         			exprType.rbegin()->rbegin()->push_back(idType);
+            		signature = getSignatureFromSymTabList(nameDecl);
         		}
                 if(call()){}
                 else if(var()){}
@@ -698,6 +715,10 @@ namespace Parser
         bool call() //"(", args, ")";
         {
         	if(!currTok.compare("(")){}
+        	else if(signature){
+    			semanticError = true;
+    			std::cout << "Error:" << lastLineNum << ": " << nameDecl <<  " refers to a function. \"()\" required" << std::endl;
+    		}
         	if(!(match("(") && args() && match(")"))){
         		return false;
         	}
