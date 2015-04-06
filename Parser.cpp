@@ -485,7 +485,15 @@ namespace Parser
             if(match("return")){
             	seenReturn = true;
                 if(expression()){
-                	returnType = expressionType;
+                	if(funType != SymbolTable::VOID){
+                		returnType = expressionType;
+                	}
+                	else{
+                		semanticError = true;
+                		if(showingErrorMsgs){
+                			std::cout << "Error:" << lastLineNum << ": void functions may not have an expression after a return." << std::endl;
+                		}
+                	}
                 }
                 else{
                 	returnType = SymbolTable::VOID;
@@ -554,6 +562,7 @@ namespace Parser
                 }
             }
             else{
+            	--exprTypeLevel.back(); //for "return;"
                 return false;
             }
             if(exprTypeLevel.back() == 0){
