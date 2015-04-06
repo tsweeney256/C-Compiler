@@ -52,10 +52,16 @@ namespace Parser
     	bool args();
     	bool argList();
 
+    	//dumb hack to make numerical literals work right
+    	//int literals need to be able to decay into float literals.
+    	//needed because SymbolTable doesn't have an enum for int literals
+    	const int INT_LITERAL = -500;
+
     	LexicalAnalyzer lex;
         std::string currTok;
         std::string nameDecl;
         std::string funDecl;
+        std::string calledFunc;
         std::list<SymbolTable*> symTabList;
         std::vector<int>* sigList = NULL;
         const std::vector<int>* signature;
@@ -64,12 +70,13 @@ namespace Parser
         int baseType = -1;
         int funType = -1;
         int lastTokFlag = -1;
+        int expressionType = -1;
+        int returnType = -1;
         size_t lastLineNum = 0;
         bool showingErrorMsgs;
         bool semanticError = false;
         bool funDeclScope = false;
-        //turned off in var() and call()
-        //turned on in expression() and factor()
+        bool seenReturn = false;
 
         bool match(const std::string& str)
         {
@@ -248,9 +255,22 @@ namespace Parser
         {
         	funDecl = nameDecl;
         	funType = baseType;
+        	if(funType == SymbolTable::VOID){
+        		seenReturn = true;
+        		returnType = SymbolTable::VOID;
+        	}
+        	else{
+        		seenReturn = false;
+        	}
         	sigList = new std::vector<int>();
             if(!(match("(") && params() && match(")") && compoundStmt())){
             	return false;
+            }
+            if(returnType != funType && !(returnType == INT_LITERAL && (funType == SymbolTable::FLOAT || funType == SymbolTable::INT))){
+            	semanticError = true;
+            	if(showingErrorMsgs){
+            		std::cout << "Error:" << lastLineNum << ": Function type and return type mismatch." << std::endl;
+            	}
             }
             return true;
         }
@@ -463,7 +483,13 @@ namespace Parser
         bool returnStmt() //"return", [expression], ";";
         {
             if(match("return")){
-                if(expression()){}
+            	seenReturn = true;
+                if(expression()){
+                	returnType = expressionType;
+                }
+                else{
+                	returnType = SymbolTable::VOID;
+                }
                 if(!match(";")){
                     return false;
                 }
@@ -520,6 +546,7 @@ namespace Parser
             }
             else if(match(NUM)){
             	if(lastTokFlag == LexicalAnalyzer::FLOAT_LITERAL){
+            		exprType.back().push_back(std::vector<int>());
             		exprType.back().back().push_back(SymbolTable::FLOAT);
             	}
                 if(!simpleExpression()){
@@ -530,35 +557,29 @@ namespace Parser
                 return false;
             }
             if(exprTypeLevel.back() == 0){
-            	int theType;
-            	if(exprType.size() == 1){
-            		theType = exprType[0][0][0];
-            	}
+            	if(exprType.back().size() != 0){ //this can happen when there's just a lone int literal
+					expressionType = exprType.back()[0][0];
+					bool done = false;
+					for(size_t i=0; i<exprType.back().size(); ++i){
+						for(size_t j=0; j<exprType.back()[i].size(); ++j){
+							if(exprType.back()[i][j] != expressionType){
+								semanticError = true;
+								if(showingErrorMsgs){
+									std::cout << "Error:" << lastLineNum << ": Type mismatch." << std::endl;
+									done = true;
+									break;
+								}
+							}
+						}
+						if(done){
+							break;
+						}
+					}
+					exprType.back().clear();
+				}
             	else{
-            		theType = SymbolTable::INT;
+            		expressionType = INT_LITERAL;
             	}
-            	bool done = false;
-            	for(size_t i=0; i<exprType.back().size(); ++i){
-            		for(size_t j=0; j<exprType.back()[i].size(); ++j){
-            			if(exprType.back()[i][j] != theType){
-            				semanticError = true;
-            				if(showingErrorMsgs){
-            					if(exprType.size() == 1){
-            						std::cout << "Error:" << lastLineNum << ": Type mismatch." << std::endl;
-            					}
-            					else{
-            						std::cout << "Error:" << lastLineNum <<": Trying to index array with non-int type." << std::endl;
-            					}
-            					done = true;
-            					break;
-            				}
-            			}
-            		}
-            		if(done){
-            			break;
-            		}
-            	}
-            	exprType.back().clear();
             }
             --exprTypeLevel.back();
             return true;
@@ -586,6 +607,12 @@ namespace Parser
         			exprType.pop_back();
         			return false;
         		}
+        		if(expressionType != SymbolTable::INT && expressionType != INT_LITERAL){
+					semanticError = true;
+					if(showingErrorMsgs){
+						std::cout << "Error:" << lastLineNum <<": Trying to index array with non-int type." << std::endl;
+					}
+				}
         		exprTypeLevel.pop_back();
         		exprType.pop_back();
         	}
@@ -727,9 +754,16 @@ namespace Parser
 
         bool args() //[arglist];
         { //arglist can be empty so we have to check for the follow set to make sure that it actually is or not
-        	while(currTok.compare(")")){
+        	calledFunc = nameDecl;
+        	if(currTok.compare(")")){
         		if(!argList()){
         			return false;
+        		}
+        	}
+        	else if(signature && signature->size()){
+        		semanticError = true;
+        		if(showingErrorMsgs){
+        			std::cout << "Error:" << lastLineNum << ": call to " << calledFunc << "() has mismatching number of arguments to parameters." << std::endl;
         		}
         	}
         	return true;
@@ -737,12 +771,45 @@ namespace Parser
 
         bool argList() //expression, {",", expression};
         {
+        	std::vector<int> types;
+        	const std::vector<int>* sig = signature;
+
+        	exprTypeLevel.push_back(-1);
+        	exprType.push_back(std::vector<std::vector<int> >());
         	if(!expression()){
+        		exprTypeLevel.pop_back();
+        		exprType.pop_back();
         		return false;
         	}
+        	else{
+        		types.push_back(expressionType);
+        	}
+        	exprTypeLevel.pop_back();
+        	exprType.pop_back();
         	while(match(",")){
+        		exprTypeLevel.push_back(-1);
         		if(!expression()){
         			return false;
+        		}
+            	else{
+            		types.push_back(expressionType);
+            	}
+        		exprTypeLevel.pop_back();
+        	}
+        	if(types.size() != sig->size()){
+        		semanticError = true;
+        		if(showingErrorMsgs){
+        			std::cout << "Error:" << lastLineNum << ": call to " << calledFunc << "() has mismatching number of arguments to parameters." << std::endl;
+        		}
+        	}
+        	else{
+        		for(size_t i=0; i<types.size(); ++i){
+        			if(types[i] != (*sig)[i] && !(types[i] == INT_LITERAL && (*sig)[i] == SymbolTable::FLOAT)){
+        				semanticError = true;
+        				if(showingErrorMsgs){
+        					std::cout << "Error:" << lastLineNum << ": call to " << calledFunc << "() has mismatching argument and parameter types." << std::endl;
+        				}
+        			}
         		}
         	}
         	return true;
