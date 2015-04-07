@@ -71,7 +71,7 @@ namespace Parser
         //array index, function argument, or neither
         //the first dimension ([][][*]) is for storing what type the expression is
         //the second dimeninsion ([][*][]) acts as a sort of stack to support the recursive nature of
-        //expressions and allow expressions, e.g. expression + (sub-expression + (sub-sub-expression))
+        //expressions and allow sub-expressions, e.g. expression + (sub-expression + (sub-sub-expression))
         //the third dimension ([*][][]) allows for each recursive expression to have different types when
         //need be. Like for instance, func(expr1, expr2). func, expr1, and expr2 all need to be able to
         //have their own type to support calling functions that have parameters of different types.
