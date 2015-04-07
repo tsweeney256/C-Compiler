@@ -628,7 +628,7 @@ namespace Parser
 						std::cout << "Error:" << lastLineNum << ": Trying to index non-array type." << std::endl;
 					}
 				}
-				exprType.push_back(std::make_pair(std::vector<std::vector<int> >(), SymbolTable::INT_ARRAY));
+				exprType.push_back(std::make_pair(std::vector<std::vector<int> >(), static_cast<int>(SymbolTable::INT_ARRAY)));
         		if(!(expression() && match("]"))){
         			exprTypeLevel.pop_back();
         			exprType.pop_back();
@@ -863,7 +863,7 @@ namespace Parser
 		symTabList.push_back(new SymbolTable());
 		exprTypeLevel.push_back(-1);
 		//the second value in this pair doesn't actually matter since exprType[0] will always be the base
-		exprType.push_back(std::make_pair(std::vector<std::vector<int> >(), SymbolTable::INT));
+		exprType.push_back(std::make_pair(std::vector<std::vector<int> >(), static_cast<int>(SymbolTable::INT)));
 	    if(program() && !semanticError){
 	    	delete *symTabList.begin();
 	    	return new Tree<SyntaxInfo>(); //CHANGE THIS!!!!!
