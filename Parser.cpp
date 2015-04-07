@@ -2,6 +2,7 @@
 #include <string>
 #include <list>
 #include <cstdlib>
+#include <utility>
 #include "Parser.hpp"
 #include "LexicalAnalyzer.hpp"
 #include "SymbolTable.hpp"
@@ -56,6 +57,7 @@ namespace Parser
     	//int literals need to be able to decay into float literals.
     	//needed because SymbolTable doesn't have an enum for int literals
     	const int INT_LITERAL = -500;
+    	const int FUNC_ARG = -501;
 
     	LexicalAnalyzer lex;
         std::string currTok;
@@ -65,7 +67,16 @@ namespace Parser
         std::list<SymbolTable*> symTabList;
         std::vector<int>* sigList = NULL;
         const std::vector<int>* signature;
-        std::vector<std::vector<std::vector<int> > > exprType; //3dpd
+        //the second part of std::pair is for storing a flag to see if the expression is for a
+        //array index, function argument, or neither
+        //the first dimension ([][][*]) is for storing what type the expression is
+        //the second dimeninsion ([][*][]) acts as a sort of stack to support the recursive nature of
+        //expressions and allow expressions, e.g. expression + (sub-expression + (sub-sub-expression))
+        //the third dimension ([*][][]) allows for each recursive expression to have different types when
+        //need be. Like for instance, func(expr1, expr2). func, expr1, and expr2 all need to be able to
+        //have their own type to support calling functions that have parameters of different types.
+        //it also allows us to index arrays of floats with integers.
+        std::vector<std::pair<std::vector<std::vector<int> >, int > > exprType; //3dpd
         std::vector<int> exprTypeLevel; //initialized to one int of -1 in parse()
         int baseType = -1;
         int funType = -1;
@@ -265,6 +276,12 @@ namespace Parser
         	sigList = new std::vector<int>();
             if(!(match("(") && params() && match(")") && compoundStmt())){
             	return false;
+            }
+            if(!seenReturn){
+            	semanticError = true;
+            	if(showingErrorMsgs){
+            		std::cout << "Error:" << lastLineNum << ": Function has no return statement." << std::endl;
+            	}
             }
             return true;
         }
@@ -516,15 +533,16 @@ namespace Parser
         	++exprTypeLevel.back();
         	nameDecl = currTok;
             if(match(ID)){
-            	exprType.back().push_back(std::vector<int>());
+            	exprType.back().first.push_back(std::vector<int>());
             	if((idType = peekInSymTabList(nameDecl)) == SymbolTable::NOT_FOUND){
+            		exprType.back().first.back().push_back(idType);
 					semanticError = true;
 					if(showingErrorMsgs){
 						std::cout << "Error:" << lastLineNum << ": '" << nameDecl << "' not found." << std::endl;
 					}
 				}
             	else{
-            		exprType.back().back().push_back(idType);
+            		exprType.back().first.back().push_back(idType);
             		signature = getSignatureFromSymTabList(nameDecl);
             	}
                 if(call()){
@@ -554,8 +572,8 @@ namespace Parser
             }
             else if(match(NUM)){
             	if(lastTokFlag == LexicalAnalyzer::FLOAT_LITERAL){
-            		exprType.back().push_back(std::vector<int>());
-            		exprType.back().back().push_back(SymbolTable::FLOAT);
+            		exprType.back().first.push_back(std::vector<int>());
+            		exprType.back().first.back().push_back(SymbolTable::FLOAT);
             	}
                 if(!simpleExpression()){
                     return false;
@@ -566,12 +584,12 @@ namespace Parser
                 return false;
             }
             if(exprTypeLevel.back() == 0){
-            	if(exprType.back().size() != 0){ //this can happen when there's just a lone int literal
-					expressionType = exprType.back()[0][0];
+            	if(exprType.back().first.size() != 0){ //this can happen when there's just a lone int literal
+					expressionType = exprType.back().first[0][0];
 					bool done = false;
-					for(size_t i=0; i<exprType.back().size(); ++i){
-						for(size_t j=0; j<exprType.back()[i].size(); ++j){
-							if(exprType.back()[i][j] != expressionType){
+					for(size_t i=0; i<exprType.back().first.size(); ++i){
+						for(size_t j=0; j<exprType.back().first[i].size(); ++j){
+							if(exprType.back().first[i][j] != expressionType){
 								semanticError = true;
 								if(showingErrorMsgs){
 									std::cout << "Error:" << lastLineNum << ": Type mismatch." << std::endl;
@@ -584,7 +602,7 @@ namespace Parser
 							break;
 						}
 					}
-					exprType.back().clear();
+					exprType.back().first.clear();
 				}
             	else{
             		expressionType = INT_LITERAL;
@@ -598,11 +616,11 @@ namespace Parser
         {
         	if(match("[")){
         		exprTypeLevel.push_back(-1);
-				if(exprType.back().back().back() == SymbolTable::INT_ARRAY){
-					exprType.back().back().back() = SymbolTable::INT;
+				if(exprType.back().first.back().back() == SymbolTable::INT_ARRAY){
+					exprType.back().first.back().back() = SymbolTable::INT;
 				}
-				else if(exprType.back().back().back() == SymbolTable::FLOAT_ARRAY){
-					exprType.back().back().back() = SymbolTable::FLOAT;
+				else if(exprType.back().first.back().back() == SymbolTable::FLOAT_ARRAY){
+					exprType.back().first.back().back() = SymbolTable::FLOAT;
 				}
 				else{
 					semanticError = true;
@@ -610,7 +628,7 @@ namespace Parser
 						std::cout << "Error:" << lastLineNum << ": Trying to index non-array type." << std::endl;
 					}
 				}
-				exprType.push_back(std::vector<std::vector<int> >());
+				exprType.push_back(std::make_pair(std::vector<std::vector<int> >(), SymbolTable::INT_ARRAY));
         		if(!(expression() && match("]"))){
         			exprTypeLevel.pop_back();
         			exprType.pop_back();
@@ -625,8 +643,9 @@ namespace Parser
         		exprTypeLevel.pop_back();
         		exprType.pop_back();
         	}
-        	else if(exprType.back().back().back() == SymbolTable::INT_ARRAY ||
-        			exprType.back().back().back() == SymbolTable::FLOAT_ARRAY){
+        	else if((exprType.back().first.back().back() == SymbolTable::INT_ARRAY ||
+        			exprType.back().first.back().back() == SymbolTable::FLOAT_ARRAY) &&
+        			exprType.back().second != FUNC_ARG){
         		semanticError= true;
         		if(showingErrorMsgs){
         			std::cout << "Error:" << lastLineNum << ": Trying to use array without indexing it." << std::endl;
@@ -728,7 +747,7 @@ namespace Parser
 					}
 				}
         		else{
-        			exprType.rbegin()->rbegin()->push_back(idType);
+        			exprType.back().first.back().push_back(idType);
             		signature = getSignatureFromSymTabList(nameDecl);
         		}
                 if(call()){}
@@ -739,7 +758,7 @@ namespace Parser
         	}
         	else if(match(NUM)){
         		if(lastTokFlag == LexicalAnalyzer::FLOAT_LITERAL){
-        			exprType.rbegin()->rbegin()->push_back(SymbolTable::FLOAT);
+        			exprType.back().first.back().push_back(SymbolTable::FLOAT);
 				}
         	}
         	else{
@@ -793,7 +812,7 @@ namespace Parser
         	const std::vector<int>* sig = signature;
 
         	exprTypeLevel.push_back(-1);
-        	exprType.push_back(std::vector<std::vector<int> >());
+        	exprType.push_back(std::make_pair(std::vector<std::vector<int> >(), FUNC_ARG));
         	if(!expression()){
         		exprTypeLevel.pop_back();
         		exprType.pop_back();
@@ -806,7 +825,7 @@ namespace Parser
         	exprType.pop_back();
         	while(match(",")){
         		exprTypeLevel.push_back(-1);
-        		exprType.push_back(std::vector<std::vector<int> >());
+        		exprType.push_back(std::make_pair(std::vector<std::vector<int> >(), FUNC_ARG));
         		if(!expression()){
         			return false;
         		}
@@ -843,7 +862,8 @@ namespace Parser
 		currTok = lex.getNextToken();
 		symTabList.push_back(new SymbolTable());
 		exprTypeLevel.push_back(-1);
-		exprType.push_back(std::vector<std::vector<int> >());
+		//the second value in this pair doesn't actually matter since exprType[0] will always be the base
+		exprType.push_back(std::make_pair(std::vector<std::vector<int> >(), SymbolTable::INT));
 	    if(program() && !semanticError){
 	    	delete *symTabList.begin();
 	    	return new Tree<SyntaxInfo>(); //CHANGE THIS!!!!!
