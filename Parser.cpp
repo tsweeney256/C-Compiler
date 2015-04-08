@@ -571,9 +571,12 @@ namespace Parser
                 }
             }
             else if(match(NUM)){
+            	exprType.back().first.push_back(std::vector<int>());
             	if(lastTokFlag == LexicalAnalyzer::FLOAT_LITERAL){
-            		exprType.back().first.push_back(std::vector<int>());
             		exprType.back().first.back().push_back(SymbolTable::FLOAT);
+            	}
+            	else{
+            		exprType.back().first.back().push_back(INT_LITERAL);
             	}
                 if(!simpleExpression()){
                     return false;
@@ -584,29 +587,28 @@ namespace Parser
                 return false;
             }
             if(exprTypeLevel.back() == 0){
-            	if(exprType.back().first.size() != 0){ //this can happen when there's just a lone int literal
-					expressionType = exprType.back().first[0][0];
-					bool done = false;
-					for(size_t i=0; i<exprType.back().first.size(); ++i){
-						for(size_t j=0; j<exprType.back().first[i].size(); ++j){
-							if(exprType.back().first[i][j] != expressionType){
-								semanticError = true;
-								if(showingErrorMsgs){
-									std::cout << "Error:" << lastLineNum << ": Type mismatch." << std::endl;
-									done = true;
-									break;
-								}
+				expressionType = exprType.back().first[0][0];
+				bool done = false;
+				for(size_t i=0; i<exprType.back().first.size(); ++i){
+					for(size_t j=0; j<exprType.back().first[i].size(); ++j){
+						if(exprType.back().first[i][j] != expressionType &&
+								(expressionType != INT_LITERAL &&
+								(exprType.back().first[i][j] != SymbolTable::INT || exprType.back().first[i][j] != SymbolTable::FLOAT)) &&
+								(exprType.back().first[i][j] != INT_LITERAL &&
+								(expressionType != SymbolTable::INT || expressionType != SymbolTable::FLOAT))){
+							semanticError = true;
+							if(showingErrorMsgs){
+								std::cout << "Error:" << lastLineNum << ": Type mismatch." << std::endl;
+								done = true;
+								break;
 							}
 						}
-						if(done){
-							break;
-						}
 					}
-					exprType.back().first.clear();
+					if(done){
+						break;
+					}
 				}
-            	else{
-            		expressionType = INT_LITERAL;
-            	}
+				exprType.back().first.clear();
             }
             --exprTypeLevel.back();
             return true;
@@ -760,6 +762,9 @@ namespace Parser
         		if(lastTokFlag == LexicalAnalyzer::FLOAT_LITERAL){
         			exprType.back().first.back().push_back(SymbolTable::FLOAT);
 				}
+        		else{
+        			exprType.back().first.back().push_back(INT_LITERAL);
+        		}
         	}
         	else{
         		return false;
