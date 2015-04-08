@@ -815,7 +815,7 @@ namespace Parser
         	calledFunc = nameDecl;
         	if(currTok.compare(")")){
         		if(!argList()){
-        			//hack to prevent a sigfault
+        			//hack to prevent a segfault
         			exprType.back().first.push_back(std::vector<int>());
         			exprType.back().first.back().push_back(-1);
         			return false;
