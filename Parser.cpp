@@ -63,6 +63,7 @@ namespace Parser
         std::string currTok;
         std::string nameDecl;
         std::string funDecl;
+        std::string globalNameDecl;
         std::string calledFunc;
         std::list<SymbolTable*> symTabList;
         std::vector<int>* sigList = NULL;
@@ -160,6 +161,18 @@ namespace Parser
             	}
             	semanticError = true;
             }
+            else if(symTabList.front()->getSignature("main")->size() != 0){
+            	semanticError = true;
+            	if(showingErrorMsgs){
+            		std::cout << "Error:" << lastLineNum << ": main function must be declared with void parameter list." << std::endl;
+            	}
+            }
+            else if(globalNameDecl.compare("main")){
+            	semanticError = true;
+            	if(showingErrorMsgs){
+            		std::cout << "Error:" << lastLineNum << ": main function needs to be last declaration in file." << std::endl;
+            	}
+            }
             if(lex.eof()){
             	return true;
             }
@@ -186,6 +199,7 @@ namespace Parser
             if(match("int")){
             	baseType = SymbolTable::INT;
             	nameDecl = currTok;
+            	globalNameDecl = nameDecl;
             	if(!match(ID)){
             		return false;
             	}
@@ -198,6 +212,7 @@ namespace Parser
             else if(match("float")){
             	baseType = SymbolTable::FLOAT;
             	nameDecl = currTok;
+            	globalNameDecl = nameDecl;
             	if(!match(ID)){
             		return false;
             	}
@@ -210,6 +225,7 @@ namespace Parser
             else if(match("void")){
             	baseType = SymbolTable::VOID;
             	nameDecl = currTok;
+            	globalNameDecl = nameDecl;
             	if(!(match(ID) && funDeclaration())){
             		return false;
             	}
@@ -799,6 +815,9 @@ namespace Parser
         	calledFunc = nameDecl;
         	if(currTok.compare(")")){
         		if(!argList()){
+        			//hack to prevent a sigfault
+        			exprType.back().first.push_back(std::vector<int>());
+        			exprType.back().first.back().push_back(-1);
         			return false;
         		}
         	}
