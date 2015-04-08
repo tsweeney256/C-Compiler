@@ -149,7 +149,7 @@ namespace Parser
         bool program() //declarationList;
         {
         	if(lex.eof()){
-        		return true;
+        		return false;
         	}
             if(!declarationList()){
                 return false;
