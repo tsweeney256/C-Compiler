@@ -603,8 +603,24 @@ namespace Parser
                 return false;
             }
             if(exprTypeLevel.back() == 0){
-				expressionType = exprType.back().first[0][0];
+            	expressionType = exprType.back().first[0][0];
+            	//if the first part of the expressin is an int literal, the whole expression itself could still be either an int or float
+            	//so we go through every token type to find out the type of the whole expression
+            	if(expressionType == INT_LITERAL){
+					for(size_t i=0; i<exprType.back().first.size(); ++i){
+						for(size_t j=0; j<exprType.back().first[i].size(); ++j){
+							if(exprType.back().first[i][j] == SymbolTable::INT && expressionType == INT_LITERAL){
+								expressionType = SymbolTable::INT;
+							}
+							else if(exprType.back().first[i][j] == SymbolTable::FLOAT &&
+									(expressionType == INT_LITERAL || expressionType == SymbolTable::INT)){
+								expressionType = SymbolTable::FLOAT;
+							}
+						}
+					}
+            	}
 				bool done = false;
+				//now we actually go through it to see if all the tokens' types are compatible with the expression's type
 				for(size_t i=0; i<exprType.back().first.size(); ++i){
 					for(size_t j=0; j<exprType.back().first[i].size(); ++j){
 						if(exprType.back().first[i][j] != expressionType &&
