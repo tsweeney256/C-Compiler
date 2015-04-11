@@ -10,10 +10,8 @@ class Tree
 public:
     Tree();
     Tree(const T& val);
-    Tree<T>* clone(); //deep copy
+    Tree<T>* clone(); //deep copy //not implemented yet
     static void destroy(Tree<T>* tree);
-    T getVal() const;
-    void setVal(const T& val);
 
     void connectChild(Tree<T>* child);
 
@@ -21,11 +19,12 @@ public:
     Tree<T>* getChild(int idx);
     Tree<T>* getParent();
 
+    T val;
+
 protected:
     ~Tree();
 
 private:
-    T m_val;
     std::vector<Tree<T>*> m_child;
     Tree<T>* m_parent;
 
@@ -33,11 +32,11 @@ private:
 
 template <typename T>
 Tree<T>::Tree()
-        : m_val(), m_parent(NULL) {}
+        : val(), m_parent(NULL) {}
 
 template <typename T>
 Tree<T>::Tree(const T& val)
-        : m_val(val), m_parent(NULL) {}
+        : val(val), m_parent(NULL) {}
 
 template <typename T>
 Tree<T>::~Tree()
@@ -57,18 +56,6 @@ template <typename T>
 Tree<T>* Tree<T>::clone()
 {
 	return NULL; //maybe I'll implement it later...
-}
-
-template <typename T>
-T Tree<T>::getVal() const
-{
-    return m_val;
-}
-
-template <typename T>
-void Tree<T>::setVal(const T& val)
-{
-    m_val = val;
 }
 
 template <typename T>
