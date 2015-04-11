@@ -7,38 +7,31 @@ struct SyntaxInfo
 {
 	int syntaxFlag;
 	int typeFlag;
-	int array;
-	int leftTypeFlag;
-	int leftArray;
-	int rightTypeFlag;
-	int rightArray;
 	std::string name;
 
 	SyntaxInfo()
 		: syntaxFlag(-1),
 		  typeFlag(-1),
-		  array(0),
-		  leftTypeFlag(-1),
-		  leftArray(0),
-		  rightTypeFlag(-1),
-		  rightArray(0),
 		  name() {}
 
 	//syntax flags
 	enum
 	{
+	    PROGRAM,
 		VAR_DEC,
 		FUN_DEC,
 		PARAMS,
 		COMPOUND_STMT,
-		STATEMENT_LIST,
+		LOCAL_DECS,
+		STMT_LIST,
 		ASSIGNMENT,
 		IF,
 		WHILE,
 		RETURN,
 		INT_LITERAL,
 		FLOAT_LITERAL,
-		ID,
+		VAR,
+		CALL,
 		ADD,
 		SUB,
 		MULT,
