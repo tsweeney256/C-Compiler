@@ -45,6 +45,8 @@ namespace Parser
     	bool expression();
     	bool var();
     	bool simpleExpression();
+    	bool additiveExpression();
+    	bool term();
     	bool relop();
     	bool addop();
     	bool mulop();
@@ -688,42 +690,51 @@ namespace Parser
         	return true;
         }
 
-        bool simpleExpression() //{mulop, factor}, {addop, factor, {mulop, factor}},
-                                //[relop, factor, {mulop, factor}, {addop, factor, {mulop, factor}}];
+        bool simpleExpression() //additiveExpression, [relop, factor, additiveExpression]];
+                                //additiveExpression can be empty
+        {
+        	if(additiveExpression()){
+				if(relop()){
+					if(!factor()){
+						return false;
+					}
+					if(additiveExpression()){}
+					else{
+						return false;
+					}
+				}
+        	}
+        	else{
+        		return false;
+        	}
+        	return true;
+        }
+
+        bool additiveExpression() //term, {addop, factor}, term;
+                                  //term can be empty
+        {
+        	if(term()){
+				while(addop()){
+					if(!factor()){
+						return false;
+					}
+					if(term()){}
+					else{
+						return false;
+					}
+				}
+        	}
+        	else{
+        		return false;
+        	}
+        	return true;
+        }
+
+        bool term() //{mulop, factor};
         {
         	while(mulop()){
                 if(!factor()){
                     return false;
-                }
-        	}
-        	while(addop()){
-                if(!factor()){
-                    return false;
-                }
-                while(mulop()){
-                    if(!factor()){
-                        return false;
-                    }
-                }
-        	}
-        	if(relop()){
-                if(!factor()){
-                    return false;
-                }
-                while(mulop()){
-                    if(!factor()){
-                        return false;
-                    }
-                }
-                while(addop()){
-                    if(!factor()){
-                        return false;
-                    }
-                    while(mulop()){
-                        if(!factor()){
-                            return false;
-                        }
-                    }
                 }
         	}
         	return true;
