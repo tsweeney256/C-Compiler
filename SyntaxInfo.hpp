@@ -59,7 +59,7 @@ struct SyntaxInfo
 	{
 		switch(flag){
 		case PROGRAM:
-			return "PROGRAM";
+			return "LARCH";
 		case VAR_DEC:
 			return "VAR_DEC";
 		case FUN_DEC:
