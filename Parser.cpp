@@ -734,7 +734,20 @@ namespace Parser
                 }
             }
             else if(match("(")){
-                if(!(expression() && match(")") && simpleExpression())){
+            	operandTree.push_back(new Tree<SyntaxInfo>());
+        		childTree.push_back(std::vector<Tree<SyntaxInfo>*>());
+        		childTree.back().push_back(new Tree<SyntaxInfo>());
+                if(!(expression() && match(")"))){
+                    return false;
+                }
+        		operandTree.back()->connectChild(childTree.back().back()->getChild(0));
+        		Tree<SyntaxInfo>* temp = operandTree.back();
+        		//hack so we don't have to have any sort of SUB_EXPRESSION syntax type
+        		operandTree.back() = operandTree.back()->getChild(0);
+        		Tree<SyntaxInfo>::destroyNode(childTree.back().back());
+        		Tree<SyntaxInfo>::destroyNode(temp);
+        		childTree.pop_back();
+                if(!(simpleExpression())){
                     return false;
                 }
             }
@@ -1004,9 +1017,19 @@ namespace Parser
         {
         	nameDecl = currTok; //might possibly be an ID
         	if(match("(")){
-        		if(!(expression() && match(")"))){
-        			return false;
-        		}
+            	operandTree.push_back(new Tree<SyntaxInfo>());
+        		childTree.push_back(std::vector<Tree<SyntaxInfo>*>());
+        		childTree.back().push_back(new Tree<SyntaxInfo>());
+                if(!(expression() && match(")"))){
+                    return false;
+                }
+        		operandTree.back()->connectChild(childTree.back().back()->getChild(0));
+        		Tree<SyntaxInfo>* temp = operandTree.back();
+        		//hack so we don't have to have any sort of SUB_EXPRESSION syntax type
+        		operandTree.back() = operandTree.back()->getChild(0);
+        		Tree<SyntaxInfo>::destroyNode(childTree.back().back());
+        		Tree<SyntaxInfo>::destroyNode(temp);
+        		childTree.pop_back();
         	}
         	else if(match(ID)){
         		int idType = -1;
