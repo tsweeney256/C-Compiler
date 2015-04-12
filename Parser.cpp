@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include <list>
+#include <vector>
 #include <cstdlib>
 #include <utility>
 #include "Parser.hpp"
@@ -25,6 +26,11 @@ namespace Parser
     	bool match(const std::string& str);
     	bool match(int flag);
     	int peekInSymTabList(const std::string& name);
+    	const std::vector<int>* getSignatureFromSymTabList(const std::string& name);
+    	bool simpleExpressionHigherPrecAttach(const char op);
+    	bool simpleExpressionAttach(const char op);
+    	inline void attachLastChildTree();
+    	void attachOperandTreeToChildTree();
 
     	bool program();
     	bool declarationList();
@@ -79,18 +85,29 @@ namespace Parser
         //need be. Like for instance, func(expr1, expr2). func, expr1, and expr2 all need to be able to
         //have their own type to support calling functions that have parameters of different types.
         //it also allows us to index arrays of floats with integers.
+        //This could probably actually be made into a 2d array, but it works and this is just
+        //for a school assignment and I don't want to break anything so I won't.
         std::vector<std::pair<std::vector<std::vector<int> >, int > > exprType; //3dpd
         std::vector<int> exprTypeLevel; //initialized to one int of -1 in parse()
+        std::vector<std::vector<Tree<SyntaxInfo>*> > childTree;
+        std::vector<Tree<SyntaxInfo>*> operandTree;
+        Tree<SyntaxInfo>* syntaxTree = NULL;
         int baseType = -1;
         int funType = -1;
         int lastTokFlag = -1;
         int expressionType = -1;
         int returnType = -1;
+        int opFlag;
+        std::vector<int> toPopBackinSE;
         size_t lastLineNum = 0;
         bool showingErrorMsgs;
         bool semanticError = false;
         bool funDeclScope = false;
         bool seenReturn = false;
+        std::vector<bool> higherPrec;
+        std::vector<bool> empty;
+        //hack so expressions like "foo(x[foo(1)])" with mismatching parenthesis don't get accepted
+        std::vector<bool> supposedToBeACall;
 
         bool match(const std::string& str)
         {
@@ -149,8 +166,60 @@ namespace Parser
 			return NULL;
         }
 
+        bool simpleExpressionHigherPrecAttach(const char op)
+        {
+    		childTree.back().push_back(new Tree<SyntaxInfo>());
+    		++toPopBackinSE.back();
+    		childTree.back().back()->val.syntaxFlag = opFlag;
+            attachLastChildTree();
+            attachOperandTreeToChildTree();
+            childTree.back().pop_back();
+			if(!factor()){
+				return false;
+			}
+			//dumb hack that makes sure that the precedence is actually right
+			//there's most likely a better way to do this
+			if(!((op == '>' && (currTok[0] == '+' || currTok[0] == '-' || currTok[0] == '*' || currTok[0] == '/')) ||
+					((op == '+') && (currTok[0] == '*' || currTok[0] == '/')))){
+				attachOperandTreeToChildTree();
+				++toPopBackinSE.back();
+			}
+            return true;
+        }
+
+        bool simpleExpressionAttach(const char op)
+        {
+    		childTree.back().push_back(new Tree<SyntaxInfo>());
+    		childTree.back().back()->val.syntaxFlag = opFlag;
+            attachLastChildTree();
+            ++toPopBackinSE.back();
+			if(!factor()){
+				return false;
+			}
+			if(!((op == '>' && (currTok[0] == '+' || currTok[0] == '-' || currTok[0] == '*' || currTok[0] == '/')) ||
+					((op == '+') && (currTok[0] == '*' || currTok[0] == '/')))){
+				attachOperandTreeToChildTree();
+				++toPopBackinSE.back();
+			}
+            return true;
+        }
+
+        void attachLastChildTree()
+        {
+			childTree.back()[childTree.back().size()-2]->connectChild(childTree.back().back());
+        }
+
+        void attachOperandTreeToChildTree()
+        {
+        	childTree.back().push_back(operandTree.back());
+        	attachLastChildTree();
+        	operandTree.pop_back();
+        }
+
         bool program() //declarationList;
         {
+            syntaxTree->val.syntaxFlag = SyntaxInfo::PROGRAM;
+            childTree.push_back(std::vector<Tree<SyntaxInfo>*>());
         	if(lex.eof()){
         		return false;
         	}
@@ -198,36 +267,48 @@ namespace Parser
 
         bool declaration() //(("int" | "float"), "ID", (varDeclaration | funDeclaration)) | ("void", "ID", funDeclaration);
         {
+            childTree.back().push_back(new Tree<SyntaxInfo>());
+            syntaxTree->connectChild(childTree.back().back());
             if(match("int")){
+                childTree.back().back()->val.typeFlag = SyntaxInfo::INT;
             	baseType = SymbolTable::INT;
             	nameDecl = currTok;
             	globalNameDecl = nameDecl;
             	if(!match(ID)){
             		return false;
             	}
-            	if(varDeclaration()){}
+                childTree.back().back()->val.name = globalNameDecl;
+            	if(varDeclaration()){
+            		childTree.back().back()->val.syntaxFlag = SyntaxInfo::VAR_DEC;
+            	}
             	else if(funDeclaration()){}
             	else{
             		return false;
             	}
             }
             else if(match("float")){
+                childTree.back().back()->val.typeFlag = SyntaxInfo::FLOAT;
             	baseType = SymbolTable::FLOAT;
             	nameDecl = currTok;
             	globalNameDecl = nameDecl;
+            	childTree.back().back()->val.name = globalNameDecl;
             	if(!match(ID)){
             		return false;
             	}
-            	if(varDeclaration()){}
+            	if(varDeclaration()){
+            		childTree.back().back()->val.syntaxFlag = SyntaxInfo::VAR_DEC;
+            	}
             	else if(funDeclaration()){}
             	else{
             		return false;
             	}
             }
             else if(match("void")){
+                childTree.back().back()->val.typeFlag = SyntaxInfo::VOID;
             	baseType = SymbolTable::VOID;
             	nameDecl = currTok;
             	globalNameDecl = nameDecl;
+            	childTree.back().back()->val.name = globalNameDecl;
             	if(!(match(ID) && funDeclaration())){
             		return false;
             	}
@@ -235,6 +316,7 @@ namespace Parser
             else{
             	return false;
             }
+            childTree.back().pop_back();
             return true;
         }
 
@@ -254,18 +336,31 @@ namespace Parser
             			std::cout << "Error:" << lastLineNum << ": Array declaration must have more than 0 elements" << std::endl;
             		}
             	}
-            	if(!(match(NUM) && match("]") && match(";"))){
-            		return false;
-            	}
             	if(baseType == SymbolTable::INT){
             		if(!(*symTabList.rbegin())->add(nameDecl, SymbolTable::INT_ARRAY)){
             			duplicateDecl = true;
             		}
+            		childTree.back().back()->val.typeFlag = SyntaxInfo::INT_ARRAY;
             	}
             	else if(baseType == SymbolTable::FLOAT){
             		if(!(*symTabList.rbegin())->add(nameDecl, SymbolTable::FLOAT_ARRAY)){
             			duplicateDecl = true;
             		}
+            		childTree.back().back()->val.typeFlag = SyntaxInfo::FLOAT_ARRAY;
+            	}
+            	nameDecl = currTok;
+            	if(match(NUM)){
+            		childTree.back().push_back(new Tree<SyntaxInfo>());
+            		childTree.back().back()->val.syntaxFlag = SyntaxInfo::INT_LITERAL;
+                    childTree.back().back()->val.name = nameDecl;
+                    attachLastChildTree();
+                    childTree.back().pop_back();
+            	}
+            	else{
+                    return false;
+            	}
+            	if(!(match("]") && match(";"))){
+            		return false;
             	}
             }
             else{
@@ -301,11 +396,15 @@ namespace Parser
             		std::cout << "Error:" << lastLineNum << ": Function has no return statement." << std::endl;
             	}
             }
+            childTree.back().back()->val.syntaxFlag = SyntaxInfo::FUN_DEC;
             return true;
         }
 
         bool params() //paramList | "void";
         {
+            childTree.back().push_back(new Tree<SyntaxInfo>());
+            childTree.back().back()->val.syntaxFlag = SyntaxInfo::PARAMS;
+            attachLastChildTree();
         	funDeclScope = true;
         	symTabList.push_back(new SymbolTable());
         	if((!currTok.compare("int") || !currTok.compare("float"))){
@@ -323,6 +422,7 @@ namespace Parser
 					std::cout << "Error:" << lastLineNum << ": '" << funDecl << "' declared multiple times in the same scope." << std::endl;
 				}
 			}
+			childTree.back().pop_back();
         	return true;
         }
 
@@ -352,10 +452,15 @@ namespace Parser
             else{
                 return false;
             }
+            childTree.back().push_back(new Tree<SyntaxInfo>());
+            childTree.back().back()->val.syntaxFlag = SyntaxInfo::VAR_DEC;
+            childTree.back().back()->val.typeFlag = baseType;
+            attachLastChildTree();
             nameDecl = currTok;
             if(!match(ID)){
                 return false;
             }
+            childTree.back().back()->val.name = nameDecl;
             if(match("[")){
                 if(!match("]")){
                     return false;
@@ -377,11 +482,15 @@ namespace Parser
             		std::cout << "Error:" << lastLineNum << ": '" << nameDecl << "' declared multiple times in parameter list." << std::endl;
             	}
             }
+            childTree.back().pop_back();
             return true;
         }
 
         bool compoundStmt() //"{", localDeclarations, stmtList, "}";
         {
+        	childTree.back().push_back(new Tree<SyntaxInfo>());
+        	attachLastChildTree();
+        	childTree.back().back()->val.syntaxFlag = SyntaxInfo::COMPOUND_STMT;
         	if(!funDeclScope){
         		symTabList.push_back(new SymbolTable());
         	}
@@ -394,34 +503,51 @@ namespace Parser
             }
             delete *symTabList.rbegin();
             symTabList.pop_back();
+            childTree.back().pop_back();
             return true;
         }
 
         bool localDeclarations() //{("int" | "float"), "ID", varDeclaration};
         {
         	//sure would be nice to use a closure to get rid of this code duplication...
+        	childTree.back().push_back(new Tree<SyntaxInfo>());
+        	childTree.back().back()->val.syntaxFlag = SyntaxInfo::LOCAL_DECS;
+        	attachLastChildTree();
         	bool isDone = false;
         	while(!isDone){
         		if(match("int")){
         			baseType = SymbolTable::INT;
         			nameDecl = currTok;
+        			childTree.back().push_back(new Tree<SyntaxInfo>());
+        			childTree.back().back()->val.syntaxFlag = SyntaxInfo::VAR_DEC;
+        			childTree.back().back()->val.typeFlag = SyntaxInfo::INT;
+        			childTree.back().back()->val.name = nameDecl;
         			if(!(match(ID) && varDeclaration())){
         				isDone = true;
         				return false;
         			}
+        			attachLastChildTree();
+        			childTree.back().pop_back();
         		}
         		else if(match("float")){
         			baseType = SymbolTable::FLOAT;
         			nameDecl = currTok;
+        			childTree.back().push_back(new Tree<SyntaxInfo>());
+        			childTree.back().back()->val.syntaxFlag = SyntaxInfo::VAR_DEC;
+        			childTree.back().back()->val.typeFlag = SyntaxInfo::FLOAT;
+        			childTree.back().back()->val.name = nameDecl;
         			if(!(match(ID) && varDeclaration())){
 						isDone = true;
 						return false;
 					}
+        			attachLastChildTree();
+        			childTree.back().pop_back();
         		}
         		else{
         			isDone = true;
         		}
         	}
+            childTree.back().pop_back();
         	return true;
         }
 
@@ -431,12 +557,16 @@ namespace Parser
         	//This saves us from having to do redundant comparisons in the event of a well-formed program. The only downside is
         	//ill-formed programs have to make an extra function call. Whoopty doo.
 
+        	childTree.back().push_back(new Tree<SyntaxInfo>());
+        	attachLastChildTree();
+        	childTree.back().back()->val.syntaxFlag = SyntaxInfo::STMT_LIST;
         	//can be empty, so need to peek at follow set to know if it's supposed to be empty
             while(currTok.compare("}")){
             	if(!statement()){
             		return false;
             	}
             }
+            childTree.back().pop_back();
             return true;
         }
 
@@ -490,6 +620,9 @@ namespace Parser
 
         bool selectionStmt() //"if(", expression, ")", statement, ["else", statement];
         {
+        	childTree.back().push_back(new Tree<SyntaxInfo>());
+        	attachLastChildTree();
+        	childTree.back().back()->val.syntaxFlag = SyntaxInfo::IF;
             if(!(match("if") && match("(") && expression() && match(")") && statement())){
                 return false;
             }
@@ -498,19 +631,27 @@ namespace Parser
                     return false;
                 }
             }
+            childTree.back().pop_back();
             return true;
         }
 
         bool iterationStmt() //"while(", expression, ")", statement;
         {
+        	childTree.back().push_back(new Tree<SyntaxInfo>());
+        	attachLastChildTree();
+        	childTree.back().back()->val.syntaxFlag = SyntaxInfo::WHILE;
             if(!(match("while") && match("(") && expression() && match(")") && statement())){
                 return false;
             }
+            childTree.back().pop_back();
             return true;
         }
 
         bool returnStmt() //"return", [expression], ";";
         {
+        	childTree.back().push_back(new Tree<SyntaxInfo>());
+        	attachLastChildTree();
+        	childTree.back().back()->val.syntaxFlag = SyntaxInfo::RETURN;
             if(match("return")){
             	seenReturn = true;
                 if(expression()){
@@ -540,6 +681,7 @@ namespace Parser
             else{
                 return false;
             }
+            childTree.back().pop_back();
             return true;
         }
 
@@ -568,11 +710,18 @@ namespace Parser
                         return false;
                     }
                 }
-                else if(var()){
+                else if(var() && !supposedToBeACall.back()){
+                	supposedToBeACall.pop_back();
                     if(match("=")){
+                    	childTree.back().push_back(new Tree<SyntaxInfo>());
+                    	childTree.back().back()->val.syntaxFlag = SyntaxInfo::ASSIGNMENT;
+                    	attachLastChildTree();
+                    	attachOperandTreeToChildTree();
+                    	childTree.back().pop_back();
                         if(!expression()){
                             return false;
                         }
+                        childTree.back().pop_back();
                     }
                     else if(simpleExpression()){}
                     else{
@@ -580,6 +729,7 @@ namespace Parser
                     }
                 }
                 else{
+                	supposedToBeACall.pop_back();
                     return false;
                 }
             }
@@ -589,11 +739,15 @@ namespace Parser
                 }
             }
             else if(match(NUM)){
+            	operandTree.push_back(new Tree<SyntaxInfo>());
+            	operandTree.back()->val.name = nameDecl;
             	exprType.back().first.push_back(std::vector<int>());
             	if(lastTokFlag == LexicalAnalyzer::FLOAT_LITERAL){
+            		operandTree.back()->val.syntaxFlag = SyntaxInfo::FLOAT_LITERAL;
             		exprType.back().first.back().push_back(SymbolTable::FLOAT);
             	}
             	else{
+            		operandTree.back()->val.syntaxFlag = SyntaxInfo::INT_LITERAL;
             		exprType.back().first.back().push_back(INT_LITERAL);
             	}
                 if(!simpleExpression()){
@@ -650,7 +804,12 @@ namespace Parser
 
         bool var() //["[", expression, "]"];
         {
+        	operandTree.push_back(new Tree<SyntaxInfo>());
+        	operandTree.back()->val.syntaxFlag = SyntaxInfo::VAR;
+        	operandTree.back()->val.name = nameDecl;
         	if(match("[")){
+        		childTree.push_back(std::vector<Tree<SyntaxInfo>*>());
+        		childTree.back().push_back(new Tree<SyntaxInfo>());
         		exprTypeLevel.push_back(-1);
 				if(exprType.back().first.back().back() == SymbolTable::INT_ARRAY){
 					exprType.back().first.back().back() = SymbolTable::INT;
@@ -670,6 +829,10 @@ namespace Parser
         			exprType.pop_back();
         			return false;
         		}
+        		//hack to get around having to create a bogus parent tree earlier when creating the new second dimension
+        		operandTree.back()->connectChild(childTree.back().back()->getChild(0));
+        		Tree<SyntaxInfo>::destroyNode(childTree.back().back());
+        		childTree.pop_back();
         		if(expressionType != SymbolTable::INT && expressionType != INT_LITERAL){
 					semanticError = true;
 					if(showingErrorMsgs){
@@ -693,11 +856,22 @@ namespace Parser
         bool simpleExpression() //additiveExpression, [relop, factor, additiveExpression]];
                                 //additiveExpression can be empty
         {
+        	empty.push_back(true);
+        	toPopBackinSE.push_back(0);
+        	higherPrec.push_back(true);
         	if(additiveExpression()){
 				if(relop()){
-					if(!factor()){
+					if(empty.back()){
+						if(!simpleExpressionHigherPrecAttach('>')){
+							return false;
+						}
+					}
+					else if(!simpleExpressionAttach('>'))
+					{
 						return false;
 					}
+					empty.back() = false;
+					higherPrec.back() = true;
 					if(additiveExpression()){}
 					else{
 						return false;
@@ -707,6 +881,16 @@ namespace Parser
         	else{
         		return false;
         	}
+        	for(int i=0; i<toPopBackinSE.back(); ++i){
+        		childTree.back().pop_back();
+        	}
+        	if(empty.back()){
+        		attachOperandTreeToChildTree();
+        		childTree.back().pop_back();
+        	}
+        	toPopBackinSE.pop_back();
+        	empty.pop_back();
+        	higherPrec.pop_back();
         	return true;
         }
 
@@ -714,15 +898,30 @@ namespace Parser
                                   //term can be empty
         {
         	if(term()){
-				while(addop()){
-					if(!factor()){
-						return false;
+        		if(addop()){
+        			empty.back() = false;
+        			if(higherPrec.back()){
+        				higherPrec.back() = false;
+                		if(!simpleExpressionHigherPrecAttach('+')){ //calls factor()
+                			return false;
+                		}
+        			}
+        			else{
+        				if(!simpleExpressionAttach('+')){ //calls factor()
+        					return false;
+        				}
+        			}
+        			if(term()){}
+        			while(addop()){
+						if(!simpleExpressionAttach('+')){ //calls factor()
+							return false;
+						}
+						if(term()){}
+						else{
+							return false;
+						}
 					}
-					if(term()){}
-					else{
-						return false;
-					}
-				}
+        		}
         	}
         	else{
         		return false;
@@ -732,22 +931,41 @@ namespace Parser
 
         bool term() //{mulop, factor};
         {
-        	while(mulop()){
-                if(!factor()){
-                    return false;
-                }
+        	if(mulop()){
+        		higherPrec.back() = false;
+        		empty.back() = false;
+        		if(!simpleExpressionHigherPrecAttach('*')){ //calls factor()
+        			return false;
+        		}
+        		while(mulop()){
+					if(!simpleExpressionAttach('*')){ //calls factor()
+						return false;
+					}
+				}
         	}
         	return true;
         }
 
         bool relop() //"<=" | "<" | ">" | ">=" | "==" | "!=";
         {
-        	if(match("<=")){}
-        	else if(match("<")){}
-        	else if(match(">")){}
-        	else if(match(">=")){}
-        	else if(match("==")){}
-        	else if(match("!=")){}
+        	if(match("<=")){
+        		opFlag = SyntaxInfo::LTEQ;
+        	}
+        	else if(match("<")){
+        		opFlag = SyntaxInfo::LT;
+        	}
+        	else if(match(">")){
+        		opFlag = SyntaxInfo::GT;
+        	}
+        	else if(match(">=")){
+        		opFlag = SyntaxInfo::GTEQ;
+        	}
+        	else if(match("==")){
+        		opFlag = SyntaxInfo::EQ;
+        	}
+        	else if(match("!=")){
+        		opFlag = SyntaxInfo::NEQ;
+        	}
         	else{
         		return false;
         	}
@@ -756,8 +974,12 @@ namespace Parser
 
         bool addop() //"+" | "-";
         {
-        	if(match("+")){}
-        	else if(match("-")){}
+        	if(match("+")){
+        		opFlag = SyntaxInfo::ADD;
+        	}
+        	else if(match("-")){
+        		opFlag = SyntaxInfo::SUB;
+        	}
         	else{
         		return false;
         	}
@@ -766,8 +988,12 @@ namespace Parser
 
         bool mulop() //"*" | "/";
         {
-        	if(match("*")){}
-        	else if(match("/")){}
+        	if(match("*")){
+        		opFlag = SyntaxInfo::MULT;
+        	}
+        	else if(match("/")){
+        		opFlag = SyntaxInfo::DIV;
+        	}
         	else{
         		return false;
         	}
@@ -796,18 +1022,26 @@ namespace Parser
             		signature = getSignatureFromSymTabList(nameDecl);
         		}
                 if(call()){}
-                else if(var()){}
+                else if(var() && !supposedToBeACall.back()){
+                	supposedToBeACall.pop_back();
+                }
                 else{
+                	supposedToBeACall.pop_back();
                     return false;
                 }
         	}
         	else if(match(NUM)){
-        		if(lastTokFlag == LexicalAnalyzer::FLOAT_LITERAL){
-        			exprType.back().first.back().push_back(SymbolTable::FLOAT);
-				}
-        		else{
-        			exprType.back().first.back().push_back(INT_LITERAL);
-        		}
+            	operandTree.push_back(new Tree<SyntaxInfo>());
+            	operandTree.back()->val.name = nameDecl;
+            	exprType.back().first.push_back(std::vector<int>());
+            	if(lastTokFlag == LexicalAnalyzer::FLOAT_LITERAL){
+            		operandTree.back()->val.syntaxFlag = SyntaxInfo::FLOAT_LITERAL;
+            		exprType.back().first.back().push_back(SymbolTable::FLOAT);
+            	}
+            	else{
+            		operandTree.back()->val.syntaxFlag = SyntaxInfo::INT_LITERAL;
+            		exprType.back().first.back().push_back(INT_LITERAL);
+            	}
         	}
         	else{
         		return false;
@@ -817,7 +1051,12 @@ namespace Parser
 
         bool call() //"(", args, ")";
         {
+        	supposedToBeACall.push_back(false);
         	if(!currTok.compare("(")){
+        		supposedToBeACall.back() = true;
+            	operandTree.push_back(new Tree<SyntaxInfo>());
+            	operandTree.back()->val.syntaxFlag = SyntaxInfo::CALL;
+            	operandTree.back()->val.name = nameDecl;
         		if(!signature){
         			semanticError = true;
         			if(showingErrorMsgs){
@@ -834,6 +1073,7 @@ namespace Parser
         	if(!(match("(") && args() && match(")"))){
         		return false;
         	}
+        	supposedToBeACall.pop_back();
         	return true;
         }
 
@@ -862,6 +1102,8 @@ namespace Parser
         	std::vector<int> types;
         	const std::vector<int>* sig = signature;
 
+    		childTree.push_back(std::vector<Tree<SyntaxInfo>*>());
+    		childTree.back().push_back(new Tree<SyntaxInfo>());
         	exprTypeLevel.push_back(-1);
         	exprType.push_back(std::make_pair(std::vector<std::vector<int> >(), FUNC_ARG));
         	if(!expression()){
@@ -874,7 +1116,12 @@ namespace Parser
         	}
         	exprTypeLevel.pop_back();
         	exprType.pop_back();
+    		operandTree.back()->connectChild(childTree.back().back()->getChild(0));
+    		Tree<SyntaxInfo>::destroyNode(childTree.back().back());
+    		childTree.pop_back();
         	while(match(",")){
+        		childTree.push_back(std::vector<Tree<SyntaxInfo>*>());
+        		childTree.back().push_back(new Tree<SyntaxInfo>());
         		exprTypeLevel.push_back(-1);
         		exprType.push_back(std::make_pair(std::vector<std::vector<int> >(), FUNC_ARG));
         		if(!expression()){
@@ -885,6 +1132,9 @@ namespace Parser
             	}
         		exprTypeLevel.pop_back();
         		exprType.pop_back();
+        		operandTree.back()->connectChild(childTree.back().back()->getChild(0));
+        		Tree<SyntaxInfo>::destroyNode(childTree.back().back());
+        		childTree.pop_back();
         	}
         	if(sig && types.size() != sig->size()){
         		semanticError = true;
@@ -915,15 +1165,17 @@ namespace Parser
 		exprTypeLevel.push_back(-1);
 		//the second value in this pair doesn't actually matter since exprType[0] will always be the base
 		exprType.push_back(std::make_pair(std::vector<std::vector<int> >(), static_cast<int>(SymbolTable::INT)));
+        syntaxTree = new Tree<SyntaxInfo>();
 	    if(program() && !semanticError){
 	    	delete *symTabList.begin();
-	    	return new Tree<SyntaxInfo>(); //CHANGE THIS!!!!!
+	    	return syntaxTree;
 	    }
 	    else{
 	    	//need to make sure to delete the symbol table for all scopes in case of incorrect number of brackets
 	    	for(std::list<SymbolTable*>::const_reverse_iterator it = symTabList.rbegin(); it != symTabList.rend(); ++it){
 	    		delete *it;
 	    	}
+	    	Tree<SyntaxInfo>::destroy(syntaxTree);
 	    	return NULL;
 	    }
 	}
