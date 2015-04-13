@@ -13,6 +13,7 @@ class Tree
 public:
     Tree();
     Tree(const T& val);
+    Tree<T>* clone(); //deep copy //not implemented yet
     static void destroy(Tree<T>* tree); //destroys all children, grandchildren, etc.
     static void destroyNode(Tree<T>* tree); //doesn't destroy any children
     void connectChild(Tree<T>* child);
