@@ -5,6 +5,7 @@
 #include <ostream>
 #include <vector>
 #include "SyntaxInfo.hpp"
+#include "Tree_PreorderIterator.hpp"
 
 template <typename T>
 class Tree
@@ -52,12 +53,6 @@ void Tree<T>::destroy(Tree<T>* tree)
 		delete tree;
 	}
 
-}
-
-template <typename T>
-void Tree<T>::destroyNode(Tree<T>* tree)
-{
-	delete tree;
 }
 
 template <typename T>
