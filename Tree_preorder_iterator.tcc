@@ -44,13 +44,13 @@ Tree<T>::preorder_iterator::preorder_iterator(Tree<T>* val)
 template <typename T>
 typename Tree<T>::preorder_iterator& Tree<T>::preorder_iterator::operator++()
 {
-	if((m_val->numChildren() == 0 || m_val->numChildren() == m_beenTo.top()+1) && !m_val->getParent){
+	if((m_val->numChildren() == 0 || m_val->numChildren() == m_beenTo.top()+1) && !m_val->getParent()){
 		m_val = NULL;
 		return *this;
 	}
 	else{
 		while(true){
-			if(m_beenTo.top()+1 == m_val->numChildren() && m_val->getParent){
+			if(m_beenTo.top()+1 == m_val->numChildren() && m_val->getParent()){
 				m_val = m_val->getParent;
 				m_beenTo.pop();
 			}
