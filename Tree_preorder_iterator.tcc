@@ -16,8 +16,8 @@ public:
 	preorder_iterator operator--(int);
 	bool operator==(const preorder_iterator&) const;
 	bool operator!=(const preorder_iterator& other) const;
-	Tree<T>& operator*() const;
-	Tree<T>* operator->() const;
+	T& operator*() const;
+	T* operator->() const;
 
 private:
 	Tree<T>* m_val;
@@ -79,6 +79,7 @@ typename Tree<T>::preorder_iterator Tree<T>::preorder_iterator::operator++(int)
 template <typename T>
 typename Tree<T>::preorder_iterator& Tree<T>::preorder_iterator::operator--()
 {
+    int debug;
 	if(!m_val){ //end()
 		m_val = m_original;
 		if(m_beenTo.empty()){
@@ -90,17 +91,24 @@ typename Tree<T>::preorder_iterator& Tree<T>::preorder_iterator::operator--()
 		return *this;
 	}
 	else if(m_beenTo.top() == -1){
+        debug = m_beenTo.top();
 		m_val = m_val->getParent();
 		m_beenTo.pop();
 		if(m_beenTo.empty()){
 			m_beenTo.push(m_val->numChildren()-2);
+            debug = m_beenTo.top();
 		}
 		else{
 			--m_beenTo.top();
+			debug = m_beenTo.top();
+		}
+		if(m_beenTo.top() == -1){
+            return *this;
 		}
 		while(m_val->numChildren()){
 			m_val = m_val->getChild(m_beenTo.top());
 			m_beenTo.push(m_val->numChildren()-1);
+			debug = m_beenTo.top();
 		}
 		return *this;
 	}
@@ -136,15 +144,15 @@ bool Tree<T>::preorder_iterator::operator!=(const preorder_iterator& other) cons
 }
 
 template <typename T>
-Tree<T>& Tree<T>::preorder_iterator::operator*() const
+T& Tree<T>::preorder_iterator::operator*() const
 {
-	return *m_val;
+	return m_val->val;
 }
 
 template <typename T>
-Tree<T>* Tree<T>::preorder_iterator::operator->() const
+T* Tree<T>::preorder_iterator::operator->() const
 {
-	return m_val;
+	return &m_val->val;
 }
 
 #endif
