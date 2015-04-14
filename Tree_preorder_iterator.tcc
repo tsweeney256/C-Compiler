@@ -9,15 +9,15 @@ class Tree<T>::preorder_iterator : public std::iterator<std::bidirectional_itera
 {
 public:
 	preorder_iterator();
-	preorder_iterator(Tree<T>*);
+	preorder_iterator(Tree<T>*, Tree<T>*);
 	preorder_iterator& operator++();
-	preorder_iterator operator++(preorder_iterator);
+	preorder_iterator operator++(int);
 	preorder_iterator& operator--();
-	preorder_iterator operator--(preorder_iterator);
-	bool operator==(const preorder_iterator&, const preorder_iterator&) const;
-	bool operator!=(const preorder_iterator&, const preorder_iterator&) const;
-	T& operator*() const;
-	T* operator->() const;
+	preorder_iterator operator--(int);
+	bool operator==(const preorder_iterator&) const;
+	bool operator!=(const preorder_iterator& other) const;
+	Tree<T>& operator*() const;
+	Tree<T>* operator->() const;
 
 private:
 	Tree<T>* m_val;
@@ -35,8 +35,8 @@ Tree<T>::preorder_iterator::preorder_iterator()
 }
 
 template <typename T>
-Tree<T>::preorder_iterator::preorder_iterator(Tree<T>* val)
-	: m_val(val), m_original(val)
+Tree<T>::preorder_iterator::preorder_iterator(Tree<T>* val, Tree<T>* copy)
+	: m_val(val), m_original(copy)
 {
 	m_beenTo.push(-1);
 }
@@ -51,7 +51,7 @@ typename Tree<T>::preorder_iterator& Tree<T>::preorder_iterator::operator++()
 	else{
 		while(true){
 			if(m_beenTo.top()+1 == m_val->numChildren() && m_val->getParent()){
-				m_val = m_val->getParent;
+				m_val = m_val->getParent();
 				m_beenTo.pop();
 			}
 			else if(m_beenTo.top()+1 != m_val->numChildren()){
@@ -69,9 +69,9 @@ typename Tree<T>::preorder_iterator& Tree<T>::preorder_iterator::operator++()
 }
 
 template <typename T>
-typename Tree<T>::preorder_iterator Tree<T>::preorder_iterator::operator++(preorder_iterator val)
+typename Tree<T>::preorder_iterator Tree<T>::preorder_iterator::operator++(int)
 {
-	typename Tree<T>::preoder_iterator temp(val);
+	typename Tree<T>::preorder_iterator temp = *this;
 	++(*this);
 	return temp;
 }
@@ -116,11 +116,35 @@ typename Tree<T>::preorder_iterator& Tree<T>::preorder_iterator::operator--()
 }
 
 template <typename T>
-typename Tree<T>::preorder_iterator Tree<T>::preorder_iterator::operator--(preorder_iterator val)
+typename Tree<T>::preorder_iterator Tree<T>::preorder_iterator::operator--(int)
 {
-	typename Tree<T>::preoder_iterator temp(val);
+	typename Tree<T>::preorder_iterator temp = *this;
 	--(*this);
 	return temp;
+}
+
+template <typename T>
+bool Tree<T>::preorder_iterator::operator==(const preorder_iterator& other) const
+{
+	return m_val == other.m_val;
+}
+
+template <typename T>
+bool Tree<T>::preorder_iterator::operator!=(const preorder_iterator& other) const
+{
+	return m_val != other.m_val;
+}
+
+template <typename T>
+Tree<T>& Tree<T>::preorder_iterator::operator*() const
+{
+	return *m_val;
+}
+
+template <typename T>
+Tree<T>* Tree<T>::preorder_iterator::operator->() const
+{
+	return m_val;
 }
 
 #endif
