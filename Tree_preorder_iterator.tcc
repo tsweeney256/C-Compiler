@@ -12,7 +12,7 @@ public:
 	preorder_iterator(Tree<T>*);
 	preorder_iterator& operator++();
 	preorder_iterator operator++(preorder_iterator);
-	preorder_iterator& operator--(); //using this on end() is O(n) where n is the depth level the end is on
+	preorder_iterator& operator--();
 	preorder_iterator operator--(preorder_iterator);
 	bool operator==(const preorder_iterator&, const preorder_iterator&) const;
 	bool operator!=(const preorder_iterator&, const preorder_iterator&) const;
