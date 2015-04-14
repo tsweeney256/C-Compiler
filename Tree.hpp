@@ -22,6 +22,10 @@ public:
 
     T val;
 
+    class preorder_iterator;
+    preorder_iterator& preorder_begin();
+    preorder_iterator& preorder_end();
+
 protected:
     ~Tree();
 
@@ -105,5 +109,7 @@ void Tree<T>::print(std::string prefix, bool isTail, std::ostream& os)
 		getChild(numChildren()-1)->print(prefix + (isTail ?"    " : "│   "), true, os);
 	}
 }
+
+#include "Tree_preorder_iterator.tcc"
 
 #endif // TREE_HPP
