@@ -23,8 +23,6 @@ private:
 	Tree<T>* m_val;
 	Tree<T>* m_original; //just so decrementing end() can work...
 	std::stack<int> m_beenTo;
-
-	inline void plusplus();
 };
 
 template <typename T>
