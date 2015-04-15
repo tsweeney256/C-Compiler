@@ -1,5 +1,5 @@
 #ifndef SYMBOLTABLE_HPP
-#define SYMBOLtABLE_HPP
+#define SYMBOLTABLE_HPP
 
 #include <string>
 #include <vector>
