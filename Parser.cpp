@@ -360,7 +360,7 @@ namespace Parser
             	nameDecl = currTok;
             	if(match(NUM)){
             		childTree.back().push_back(new Tree<SyntaxInfo>());
-            		childTree.back().back()->val.syntaxFlag = SyntaxInfo::INT_LITERAL;
+            		childTree.back().back()->val.syntaxFlag = SyntaxInfo::ARRAY_DEC_SIZE;
                     childTree.back().back()->val.name = nameDecl;
                     attachLastChildTree();
                     childTree.back().pop_back();
@@ -462,7 +462,7 @@ namespace Parser
                 return false;
             }
             childTree.back().push_back(new Tree<SyntaxInfo>());
-            childTree.back().back()->val.syntaxFlag = SyntaxInfo::VAR_DEC;
+            childTree.back().back()->val.syntaxFlag = SyntaxInfo::PARAM_DEC;
             childTree.back().back()->val.typeFlag = baseType;
             attachLastChildTree();
             nameDecl = currTok;

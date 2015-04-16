@@ -20,8 +20,10 @@ struct SyntaxInfo
 	{
 	    PROGRAM,
 		VAR_DEC,
+		ARRAY_DEC_SIZE,
 		FUN_DEC,
 		PARAMS,
+		PARAM_DEC,
 		COMPOUND_STMT,
 		LOCAL_DECS,
 		STMT_LIST,
@@ -66,10 +68,14 @@ struct SyntaxInfo
 			return "LARCH";
 		case VAR_DEC:
 			return "VAR_DEC";
+        case ARRAY_DEC_SIZE:
+            return "ARRAY_DEC_SIZE";
 		case FUN_DEC:
 			return "FUN_DEC";
 		case PARAMS:
 			return "PARAMS";
+        case PARAM_DEC:
+            return "PARAM_DEC";
 		case COMPOUND_STMT:
 			return "COMPOUND_STMT";
 		case LOCAL_DECS:
