@@ -31,6 +31,7 @@ namespace Parser
     	bool simpleExpressionAttach(const char op);
     	inline void attachLastChildTree();
     	void attachOperandTreeToChildTree();
+    	void popSimpleExpressionTree();
 
     	bool program();
     	bool declarationList();
@@ -214,6 +215,14 @@ namespace Parser
         	childTree.back().push_back(operandTree.back());
         	attachLastChildTree();
         	operandTree.pop_back();
+        }
+
+        void popSimpleExpressionTree()
+        {
+        	for(int i=0; i<toPopBackinSE.back(); ++i){
+        		childTree.back().pop_back();
+        	}
+        	toPopBackinSE.pop_back();
         }
 
         bool program() //declarationList;
@@ -707,24 +716,32 @@ namespace Parser
             	}
                 if(call()){
                     if(!simpleExpression()){
+                    	popSimpleExpressionTree();
                         return false;
+                    }
+                    else{
+                    	popSimpleExpressionTree();
                     }
                 }
                 else if(var() && !supposedToBeACall.back()){
                 	supposedToBeACall.pop_back();
                     if(match("=")){
-                    	childTree.back().push_back(new Tree<SyntaxInfo>());
-                    	childTree.back().back()->val.syntaxFlag = SyntaxInfo::ASSIGNMENT;
-                    	attachLastChildTree();
                     	attachOperandTreeToChildTree();
-                    	childTree.back().pop_back();
+						childTree.back().push_back(new Tree<SyntaxInfo>());
+						childTree.back().back()->val.syntaxFlag = SyntaxInfo::ASSIGNMENT;
+						attachLastChildTree();
                         if(!expression()){
                             return false;
                         }
+                    	childTree.back().pop_back();
+                    	//popSimpleExpressionTree();
                         childTree.back().pop_back();
                     }
-                    else if(simpleExpression()){}
+                    else if(simpleExpression()){
+                    	popSimpleExpressionTree();
+                    }
                     else{
+                    	popSimpleExpressionTree();
                         return false;
                     }
                 }
@@ -748,7 +765,11 @@ namespace Parser
         		Tree<SyntaxInfo>::destroyNode(temp);
         		childTree.pop_back();
                 if(!(simpleExpression())){
+                	popSimpleExpressionTree();
                     return false;
+                }
+                else{
+                	popSimpleExpressionTree();
                 }
             }
             else if(match(NUM)){
@@ -764,7 +785,11 @@ namespace Parser
             		exprType.back().first.back().push_back(INT_LITERAL);
             	}
                 if(!simpleExpression()){
+                	popSimpleExpressionTree();
                     return false;
+                }
+                else{
+                	popSimpleExpressionTree();
                 }
             }
             else{
@@ -823,6 +848,7 @@ namespace Parser
         	if(match("[")){
         		childTree.push_back(std::vector<Tree<SyntaxInfo>*>());
         		childTree.back().push_back(new Tree<SyntaxInfo>());
+        		childTree.back().back()->val.syntaxFlag = SyntaxInfo::INDEX;
         		exprTypeLevel.push_back(-1);
 				if(exprType.back().first.back().back() == SymbolTable::INT_ARRAY){
 					exprType.back().first.back().back() = SymbolTable::INT;
@@ -842,9 +868,13 @@ namespace Parser
         			exprType.pop_back();
         			return false;
         		}
-        		//hack to get around having to create a bogus parent tree earlier when creating the new second dimension
-        		operandTree.back()->connectChild(childTree.back().back()->getChild(0));
-        		Tree<SyntaxInfo>::destroyNode(childTree.back().back());
+        		else{
+            		childTree.back().push_back(new Tree<SyntaxInfo>());
+            		childTree.back().back()->val.syntaxFlag = SyntaxInfo::EXIT_INDEX;
+            		attachLastChildTree();
+            		childTree.back().pop_back();
+        		}
+        		operandTree.back()->connectChild(childTree.back().back());
         		childTree.pop_back();
         		if(expressionType != SymbolTable::INT && expressionType != INT_LITERAL){
 					semanticError = true;
@@ -894,14 +924,10 @@ namespace Parser
         	else{
         		return false;
         	}
-        	for(int i=0; i<toPopBackinSE.back(); ++i){
-        		childTree.back().pop_back();
-        	}
         	if(empty.back()){
         		attachOperandTreeToChildTree();
         		childTree.back().pop_back();
         	}
-        	toPopBackinSE.pop_back();
         	empty.pop_back();
         	higherPrec.pop_back();
         	return true;
@@ -1127,6 +1153,7 @@ namespace Parser
 
     		childTree.push_back(std::vector<Tree<SyntaxInfo>*>());
     		childTree.back().push_back(new Tree<SyntaxInfo>());
+    		childTree.back().back()->val.syntaxFlag = SyntaxInfo::ARG;
         	exprTypeLevel.push_back(-1);
         	exprType.push_back(std::make_pair(std::vector<std::vector<int> >(), FUNC_ARG));
         	if(!expression()){
@@ -1139,12 +1166,15 @@ namespace Parser
         	}
         	exprTypeLevel.pop_back();
         	exprType.pop_back();
-    		operandTree.back()->connectChild(childTree.back().back()->getChild(0));
-    		Tree<SyntaxInfo>::destroyNode(childTree.back().back());
+    		operandTree.back()->connectChild(childTree.back().back());
+    		childTree.back().push_back(new Tree<SyntaxInfo>());
+    		childTree.back().back()->val.syntaxFlag = SyntaxInfo::EXIT_ARG;
+    		attachLastChildTree();
     		childTree.pop_back();
         	while(match(",")){
         		childTree.push_back(std::vector<Tree<SyntaxInfo>*>());
         		childTree.back().push_back(new Tree<SyntaxInfo>());
+        		childTree.back().back()->val.syntaxFlag = SyntaxInfo::ARG;
         		exprTypeLevel.push_back(-1);
         		exprType.push_back(std::make_pair(std::vector<std::vector<int> >(), FUNC_ARG));
         		if(!expression()){
@@ -1155,8 +1185,10 @@ namespace Parser
             	}
         		exprTypeLevel.pop_back();
         		exprType.pop_back();
-        		operandTree.back()->connectChild(childTree.back().back()->getChild(0));
-        		Tree<SyntaxInfo>::destroyNode(childTree.back().back());
+        		operandTree.back()->connectChild(childTree.back().back());
+        		childTree.back().push_back(new Tree<SyntaxInfo>());
+        		childTree.back().back()->val.syntaxFlag = SyntaxInfo::EXIT_ARG;
+        		attachLastChildTree();
         		childTree.pop_back();
         	}
         	if(sig && types.size() != sig->size()){

@@ -32,7 +32,11 @@ struct SyntaxInfo
 		INT_LITERAL,
 		FLOAT_LITERAL,
 		VAR,
+		INDEX,
+		EXIT_INDEX,
 		CALL,
+		ARG,
+		EXIT_ARG,
 		ADD,
 		SUB,
 		MULT,
@@ -86,8 +90,16 @@ struct SyntaxInfo
 			return "FLOAT_LITERAL";
 		case VAR:
 			return "VAR";
+		case INDEX:
+			return "INDEX";
+		case EXIT_INDEX:
+			return "EXIT_INDEX";
 		case CALL:
 			return "CALL";
+		case ARG:
+			return "ARG";
+		case EXIT_ARG:
+			return "EXIT_ARG";
 		case ADD:
 			return "ADD";
 		case SUB:
