@@ -23,8 +23,6 @@ private:
 	Tree<T>* m_val;
 	Tree<T>* m_original; //just so decrementing end() can work...
 	std::stack<int> m_beenTo;
-
-	inline void plusplus();
 };
 
 template <typename T>
@@ -79,6 +77,7 @@ typename Tree<T>::preorder_iterator Tree<T>::preorder_iterator::operator++(int)
 template <typename T>
 typename Tree<T>::preorder_iterator& Tree<T>::preorder_iterator::operator--()
 {
+    int debug;
 	if(!m_val){ //end()
 		m_val = m_original;
 		if(m_beenTo.empty()){
@@ -90,17 +89,24 @@ typename Tree<T>::preorder_iterator& Tree<T>::preorder_iterator::operator--()
 		return *this;
 	}
 	else if(m_beenTo.top() == -1){
+        debug = m_beenTo.top();
 		m_val = m_val->getParent();
 		m_beenTo.pop();
 		if(m_beenTo.empty()){
 			m_beenTo.push(m_val->numChildren()-2);
+            debug = m_beenTo.top();
 		}
 		else{
 			--m_beenTo.top();
+			debug = m_beenTo.top();
+		}
+		if(m_beenTo.top() == -1){
+            return *this;
 		}
 		while(m_val->numChildren()){
 			m_val = m_val->getChild(m_beenTo.top());
 			m_beenTo.push(m_val->numChildren()-1);
+			debug = m_beenTo.top();
 		}
 		return *this;
 	}
