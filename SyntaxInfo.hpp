@@ -23,20 +23,32 @@ struct SyntaxInfo
 		ARRAY_DEC_SIZE,
 		FUN_DEC,
 		PARAMS,
+		EXIT_PARAMS,
 		PARAM_DEC,
 		COMPOUND_STMT,
+		EXIT_COMPOUND_STMT,
 		LOCAL_DECS,
 		STMT_LIST,
+		EXIT_EXPR_STMT,
 		ASSIGNMENT,
+		EXIT_ASSIGNMENT,
 		IF,
+		EXIT_IF_PREDICATE,
+		BEGIN_IF_STMT,
+		BEGIN_ELSE_STMT,
 		WHILE,
+		EXIT_WHILE_PREDICATE,
+		BEGIN_WHILE_STMT,
+		EXIT_WHILE_STMT,
 		RETURN,
+		EXIT_RETURN_STMT,
 		INT_LITERAL,
 		FLOAT_LITERAL,
 		VAR,
 		INDEX,
 		EXIT_INDEX,
 		CALL,
+		EXIT_CALL,
 		ARG,
 		EXIT_ARG,
 		ADD,
@@ -74,22 +86,40 @@ struct SyntaxInfo
 			return "FUN_DEC";
 		case PARAMS:
 			return "PARAMS";
+        case EXIT_PARAMS:
+            return "EXIT_PARAMS";
         case PARAM_DEC:
             return "PARAM_DEC";
 		case COMPOUND_STMT:
 			return "COMPOUND_STMT";
+        case EXIT_COMPOUND_STMT:
+            return "EXIT_COMPOUND_STMT";
 		case LOCAL_DECS:
 			return "LOCAL_DECS";
 		case STMT_LIST:
 			return "STMT_LIST";
+        case EXIT_EXPR_STMT:
+            return "EXIT_EXPR_STMT";
 		case ASSIGNMENT:
 			return "ASSIGNMENT";
+        case EXIT_ASSIGNMENT:
+            return "EXIT_ASSIGNMENT";
 		case IF:
 			return "IF";
+        case BEGIN_IF_STMT:
+            return "BEGIN_IF_STMT";
+        case BEGIN_ELSE_STMT:
+            return "BEGIN_ELSE_STMT";
 		case WHILE:
 			return "WHILE";
+        case BEGIN_WHILE_STMT:
+            return "BEGIN_WHILE_STMT";
+        case EXIT_WHILE_STMT:
+            return "EXIT_WHILE_STMT";
 		case RETURN:
 			return "RETURN";
+        case EXIT_RETURN_STMT:
+            return "EXIT_RETURN_STMT";
 		case INT_LITERAL:
 			return "INT_LITERAL";
 		case FLOAT_LITERAL:
@@ -102,6 +132,8 @@ struct SyntaxInfo
 			return "EXIT_INDEX";
 		case CALL:
 			return "CALL";
+		case EXIT_CALL:
+			return "EXIT_CALL";
 		case ARG:
 			return "ARG";
 		case EXIT_ARG:

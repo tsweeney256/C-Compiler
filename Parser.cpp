@@ -432,6 +432,10 @@ namespace Parser
 				}
 			}
 			childTree.back().pop_back();
+            childTree.back().push_back(new Tree<SyntaxInfo>());
+            childTree.back().back()->val.syntaxFlag = SyntaxInfo::EXIT_PARAMS;
+            attachLastChildTree();
+            childTree.back().pop_back();
         	return true;
         }
 
@@ -513,6 +517,10 @@ namespace Parser
             delete *symTabList.rbegin();
             symTabList.pop_back();
             childTree.back().pop_back();
+            childTree.back().push_back(new Tree<SyntaxInfo>());
+        	attachLastChildTree();
+        	childTree.back().back()->val.syntaxFlag = SyntaxInfo::EXIT_COMPOUND_STMT;
+        	childTree.back().pop_back();
             return true;
         }
 
@@ -620,6 +628,10 @@ namespace Parser
             	if(!match(";")){
             		return false;
             	}
+            	childTree.back().push_back(new Tree<SyntaxInfo>());
+                childTree.back().back()->val.syntaxFlag = SyntaxInfo::EXIT_EXPR_STMT;
+                attachLastChildTree();
+                childTree.back().pop_back();
             }
             else{
             	return false;
@@ -632,9 +644,22 @@ namespace Parser
         	childTree.back().push_back(new Tree<SyntaxInfo>());
         	attachLastChildTree();
         	childTree.back().back()->val.syntaxFlag = SyntaxInfo::IF;
-            if(!(match("if") && match("(") && expression() && match(")") && statement())){
+            if(!(match("if") && match("(") && expression() && match(")"))){
                 return false;
             }
+            else{
+                childTree.back().push_back(new Tree<SyntaxInfo>());
+                attachLastChildTree();
+                childTree.back().back()->val.syntaxFlag = SyntaxInfo::BEGIN_IF_STMT;
+                childTree.back().pop_back();
+            }
+            if(!statement()){
+                return false;
+            }
+            childTree.back().push_back(new Tree<SyntaxInfo>());
+            attachLastChildTree();
+            childTree.back().back()->val.syntaxFlag = SyntaxInfo::BEGIN_ELSE_STMT;
+            childTree.back().pop_back();
             if(match("else")){
                 if(!statement()){
                     return false;
@@ -649,9 +674,22 @@ namespace Parser
         	childTree.back().push_back(new Tree<SyntaxInfo>());
         	attachLastChildTree();
         	childTree.back().back()->val.syntaxFlag = SyntaxInfo::WHILE;
-            if(!(match("while") && match("(") && expression() && match(")") && statement())){
+            if(!(match("while") && match("(") && expression() && match(")"))){
                 return false;
             }
+            else{
+            childTree.back().push_back(new Tree<SyntaxInfo>());
+        	attachLastChildTree();
+        	childTree.back().back()->val.syntaxFlag = SyntaxInfo::BEGIN_WHILE_STMT;
+        	childTree.back().pop_back();
+            }
+            if(!statement()){
+                return false;
+            }
+            childTree.back().push_back(new Tree<SyntaxInfo>());
+            attachLastChildTree();
+            childTree.back().back()->val.syntaxFlag = SyntaxInfo::EXIT_WHILE_STMT;
+            childTree.back().pop_back();
             childTree.back().pop_back();
             return true;
         }
@@ -691,6 +729,10 @@ namespace Parser
                 return false;
             }
             childTree.back().pop_back();
+            childTree.back().push_back(new Tree<SyntaxInfo>());
+            attachLastChildTree();
+            childTree.back().back()->val.syntaxFlag = SyntaxInfo::EXIT_RETURN_STMT;
+            childTree.back().pop_back();
             return true;
         }
 
@@ -726,15 +768,18 @@ namespace Parser
                 else if(var() && !supposedToBeACall.back()){
                 	supposedToBeACall.pop_back();
                     if(match("=")){
-                    	attachOperandTreeToChildTree();
 						childTree.back().push_back(new Tree<SyntaxInfo>());
 						childTree.back().back()->val.syntaxFlag = SyntaxInfo::ASSIGNMENT;
 						attachLastChildTree();
+						attachOperandTreeToChildTree();
+						childTree.back().pop_back();
                         if(!expression()){
                             return false;
                         }
                     	childTree.back().pop_back();
-                    	//popSimpleExpressionTree();
+                    	childTree.back().push_back(new Tree<SyntaxInfo>());
+						childTree.back().back()->val.syntaxFlag = SyntaxInfo::EXIT_ASSIGNMENT;
+						attachLastChildTree();
                         childTree.back().pop_back();
                     }
                     else if(simpleExpression()){
@@ -1191,6 +1236,10 @@ namespace Parser
         		attachLastChildTree();
         		childTree.pop_back();
         	}
+        	childTree.back().push_back(new Tree<SyntaxInfo>());
+			childTree.back().back()->val.syntaxFlag = SyntaxInfo::EXIT_CALL;
+			operandTree.back()->connectChild(childTree.back().back());
+        	childTree.back().pop_back();
         	if(sig && types.size() != sig->size()){
         		semanticError = true;
         		if(showingErrorMsgs){
