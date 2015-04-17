@@ -2,7 +2,8 @@
 #define GENERATESICXE
 
 #include <ostream>
-class Tree<SyntaxInfo>;
+class SyntaxInfo;
+template <typename T> class Tree;
 
 namespace IntermediateCode
 {
