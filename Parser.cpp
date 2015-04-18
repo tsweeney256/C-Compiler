@@ -27,11 +27,8 @@ namespace Parser
     	bool match(int flag);
     	int peekInSymTabList(const std::string& name);
     	const std::vector<int>* getSignatureFromSymTabList(const std::string& name);
-    	bool simpleExpressionHigherPrecAttach(const char op);
-    	bool simpleExpressionAttach(const char op);
     	inline void attachLastChildTree();
     	void attachOperandTreeToChildTree();
-    	void popSimpleExpressionTree();
     	void buildNextExprTreePart(int opCode, bool higherPrec);
 
     	bool program();
@@ -53,8 +50,8 @@ namespace Parser
     	bool expression();
     	bool var();
     	bool simpleExpression();
-    	bool additiveExpression(bool& rightAfterComp);
-    	bool term(bool& rightAfterComp);
+    	bool additiveExpression();
+    	bool term();
     	bool relop();
     	bool addop();
     	bool mulop();
@@ -168,45 +165,6 @@ namespace Parser
 			}
 			return NULL;
         }
-
-        bool simpleExpressionHigherPrecAttach(const char op)
-        {
-    		childTree.back().push_back(new Tree<SyntaxInfo>());
-    		++toPopBackinSE.back();
-    		childTree.back().back()->val.syntaxFlag = opFlag;
-            attachLastChildTree();
-            attachOperandTreeToChildTree();
-            childTree.back().pop_back();
-			if(!factor()){
-				return false;
-			}
-			//dumb hack that makes sure that the precedence is actually right
-			//there's most likely a better way to do this
-			if(!((op == '>' && (currTok[0] == '+' || currTok[0] == '-' || currTok[0] == '*' || currTok[0] == '/')) ||
-					((op == '+') && (currTok[0] == '*' || currTok[0] == '/')))){
-				attachOperandTreeToChildTree();
-				++toPopBackinSE.back();
-			}
-            return true;
-        }
-
-        bool simpleExpressionAttach(const char op)
-        {
-    		childTree.back().push_back(new Tree<SyntaxInfo>());
-    		childTree.back().back()->val.syntaxFlag = opFlag;
-            attachLastChildTree();
-            ++toPopBackinSE.back();
-			if(!factor()){
-				return false;
-			}
-			if(!((op == '>' && (currTok[0] == '+' || currTok[0] == '-' || currTok[0] == '*' || currTok[0] == '/')) ||
-					((op == '+') && (currTok[0] == '*' || currTok[0] == '/')))){
-				attachOperandTreeToChildTree();
-				++toPopBackinSE.back();
-			}
-            return true;
-        }
-
         void attachLastChildTree()
         {
 			childTree.back()[childTree.back().size()-2]->connectChild(childTree.back().back());
@@ -217,14 +175,6 @@ namespace Parser
         	childTree.back().push_back(operandTree.back());
         	attachLastChildTree();
         	operandTree.pop_back();
-        }
-
-        void popSimpleExpressionTree()
-        {
-        	for(int i=0; i<toPopBackinSE.back(); ++i){
-        		childTree.back().pop_back();
-        	}
-        	toPopBackinSE.pop_back();
         }
 
         void buildNextExprTreePart(int opCode, bool higherPrec)
@@ -978,9 +928,8 @@ namespace Parser
         	Tree<SyntaxInfo>* rhs = NULL;
         	toPopBackinSE.push_back(0);
         	empty.push_back(true);
-        	bool rightAfterComp = false;
         	bool foundComp = false;
-        	if(additiveExpression(rightAfterComp)){
+        	if(additiveExpression()){
 				if(relop()){
 					if(!empty.back()){
 						buildNextExprTreePart(-1, false);
@@ -991,11 +940,10 @@ namespace Parser
 					foundComp = true;
 					op = new Tree<SyntaxInfo>;
 					op->val.syntaxFlag = opFlag;
-					rightAfterComp = true;
 					if(!factor()){
 						return false;
 					}
-					if(additiveExpression(rightAfterComp)){}
+					if(additiveExpression()){}
 					else{
 						return false;
 					}
@@ -1019,24 +967,23 @@ namespace Parser
         	return true;
         }
 
-        bool additiveExpression(bool& rightAfterComp) //term, {addop, factor, term};
+        bool additiveExpression() //term, {addop, factor, term};
                                   //term can be empty
         {
-        	if(term(rightAfterComp)){
+        	if(term()){
         		if(addop()){
         			buildNextExprTreePart(opFlag, false);
-        			rightAfterComp = false;
         			empty.back() = false;
         			if(!factor()){
         				return false;
         			}
-        			if(term(rightAfterComp)){}
+        			if(term()){}
         			while(addop()){
         				buildNextExprTreePart(opFlag, false);
         				if(!factor()){
 							return false;
 						}
-						if(term(rightAfterComp)){}
+						if(term()){}
 						else{
 							return false;
 						}
@@ -1049,10 +996,9 @@ namespace Parser
         	return true;
         }
 
-        bool term(bool& rightAfterComp) //{mulop, factor};
+        bool term() //{mulop, factor};
         {
         	if(mulop()){
-        		rightAfterComp = false;
         		buildNextExprTreePart(opFlag, true);
         		empty.back() = false;
         		if(!factor()){
