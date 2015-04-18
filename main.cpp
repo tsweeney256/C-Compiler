@@ -10,6 +10,7 @@
 #include "Tree.hpp"
 #include "Tree.hpp"
 #include "SyntaxInfo.hpp"
+#include "generateSICXE.hpp"
 
 int main(int argc, char* argv[])
 {
@@ -70,6 +71,10 @@ int main(int argc, char* argv[])
 			treeFile.open(std::string(std::string(inputFileLoc) + std::string(".tree.txt")).c_str(), std::ofstream::out);
 			syntaxTree->print(treeFile);
 		}
+		std::fstream sicFile;
+		sicFile.open(std::string(std::string(inputFileLoc) + std::string(".o.txt")).c_str(), std::ofstream::out);
+		IntermediateCode::generateSICXE(syntaxTree, sicFile);
+		std::cout << "sic file written" << std::endl;
 	}
 	else{
 		std::cout << "REJECT" << std::endl;
