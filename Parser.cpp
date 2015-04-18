@@ -267,7 +267,7 @@ namespace Parser
             	if(!match(ID)){
             		return false;
             	}
-                childTree.back().back()->val.name = globalNameDecl;
+                childTree.back().back()->val.name = std::string("_") + globalNameDecl;
             	if(varDeclaration()){
             		childTree.back().back()->val.syntaxFlag = SyntaxInfo::VAR_DEC;
             	}
@@ -281,7 +281,7 @@ namespace Parser
             	baseType = SymbolTable::FLOAT;
             	nameDecl = currTok;
             	globalNameDecl = nameDecl;
-            	childTree.back().back()->val.name = globalNameDecl;
+            	childTree.back().back()->val.name = std::string("_") + globalNameDecl;
             	if(!match(ID)){
             		return false;
             	}
@@ -298,7 +298,7 @@ namespace Parser
             	baseType = SymbolTable::VOID;
             	nameDecl = currTok;
             	globalNameDecl = nameDecl;
-            	childTree.back().back()->val.name = globalNameDecl;
+            	childTree.back().back()->val.name = std::string("_") + globalNameDecl;
             	if(!(match(ID) && funDeclaration())){
             		return false;
             	}
@@ -342,7 +342,7 @@ namespace Parser
             	if(match(NUM)){
             		childTree.back().push_back(new Tree<SyntaxInfo>());
             		childTree.back().back()->val.syntaxFlag = SyntaxInfo::ARRAY_DEC_SIZE;
-                    childTree.back().back()->val.name = nameDecl;
+                    childTree.back().back()->val.name = std::string("_") + nameDecl;
                     attachLastChildTree();
                     childTree.back().pop_back();
             	}
@@ -454,7 +454,7 @@ namespace Parser
             if(!match(ID)){
                 return false;
             }
-            childTree.back().back()->val.name = nameDecl;
+            childTree.back().back()->val.name = std::string("_") + nameDecl;
             if(match("[")){
                 if(!match("]")){
                     return false;
@@ -868,7 +868,7 @@ namespace Parser
         {
         	operandTree.push_back(new Tree<SyntaxInfo>());
         	operandTree.back()->val.syntaxFlag = SyntaxInfo::VAR;
-        	operandTree.back()->val.name = nameDecl;
+        	operandTree.back()->val.name = std::string("_") + nameDecl;
         	if(match("[")){
         		childTree.push_back(std::vector<Tree<SyntaxInfo>*>());
         		childTree.back().push_back(new Tree<SyntaxInfo>());
@@ -1134,7 +1134,7 @@ namespace Parser
         		supposedToBeACall.back() = true;
             	operandTree.push_back(new Tree<SyntaxInfo>());
             	operandTree.back()->val.syntaxFlag = SyntaxInfo::CALL;
-            	operandTree.back()->val.name = nameDecl;
+            	operandTree.back()->val.name = std::string("_") + nameDecl;
         		if(!signature){
         			semanticError = true;
         			if(showingErrorMsgs){
