@@ -32,6 +32,7 @@ namespace Parser
     	inline void attachLastChildTree();
     	void attachOperandTreeToChildTree();
     	void popSimpleExpressionTree();
+    	void buildNextExprTreePart(int opCode, bool higherPrec);
 
     	bool program();
     	bool declarationList();
@@ -52,8 +53,8 @@ namespace Parser
     	bool expression();
     	bool var();
     	bool simpleExpression();
-    	bool additiveExpression();
-    	bool term();
+    	bool additiveExpression(bool& rightAfterComp);
+    	bool term(bool& rightAfterComp);
     	bool relop();
     	bool addop();
     	bool mulop();
@@ -74,6 +75,8 @@ namespace Parser
         std::string funDecl;
         std::string globalNameDecl;
         std::string calledFunc;
+        std::string lhs;
+        std::string rhs;
         std::list<SymbolTable*> symTabList;
         std::vector<int>* sigList = NULL;
         const std::vector<int>* signature;
@@ -105,7 +108,6 @@ namespace Parser
         bool semanticError = false;
         bool funDeclScope = false;
         bool seenReturn = false;
-        std::vector<bool> higherPrec;
         std::vector<bool> empty;
         //hack so expressions like "foo(x[foo(1)])" with mismatching parenthesis don't get accepted
         std::vector<bool> supposedToBeACall;
@@ -223,6 +225,35 @@ namespace Parser
         		childTree.back().pop_back();
         	}
         	toPopBackinSE.pop_back();
+        }
+
+        void buildNextExprTreePart(int opCode, bool higherPrec)
+        {
+
+			if(!empty.back()){
+				if(higherPrec){
+					++toPopBackinSE.back();
+				}
+				else{
+					++toPopBackinSE.back();
+					while(toPopBackinSE.back()){
+						Tree<SyntaxInfo>* rhs = operandTree.back();
+						operandTree.pop_back();
+						Tree<SyntaxInfo>* op = operandTree.back(); //operator
+						operandTree.pop_back();
+						Tree<SyntaxInfo>* lhs = operandTree.back();
+						operandTree.pop_back();
+						op->connectChild(lhs);
+						op->connectChild(rhs);
+						operandTree.push_back(op);
+						--toPopBackinSE.back();
+					}
+				}
+			}
+			if(opCode != -1){ //last run for the expression
+	    		operandTree.push_back(new Tree<SyntaxInfo>);
+	    		operandTree.back()->val.syntaxFlag = opCode;
+        	}
         }
 
         bool program() //declarationList;
@@ -758,12 +789,11 @@ namespace Parser
             	}
                 if(call()){
                     if(!simpleExpression()){
-                    	popSimpleExpressionTree();
+                    	//popSimpleExpressionTree();
                         return false;
                     }
-                    else{
-                    	popSimpleExpressionTree();
-                    }
+                    attachOperandTreeToChildTree();
+                    childTree.back().pop_back();
                 }
                 else if(var() && !supposedToBeACall.back()){
                 	supposedToBeACall.pop_back();
@@ -783,10 +813,11 @@ namespace Parser
                         childTree.back().pop_back();
                     }
                     else if(simpleExpression()){
-                    	popSimpleExpressionTree();
+                    	attachOperandTreeToChildTree();
+                    	childTree.back().pop_back();
                     }
                     else{
-                    	popSimpleExpressionTree();
+                    	//popSimpleExpressionTree();
                         return false;
                     }
                 }
@@ -810,12 +841,11 @@ namespace Parser
         		Tree<SyntaxInfo>::destroyNode(temp);
         		childTree.pop_back();
                 if(!(simpleExpression())){
-                	popSimpleExpressionTree();
+                	//popSimpleExpressionTree();
                     return false;
                 }
-                else{
-                	popSimpleExpressionTree();
-                }
+                attachOperandTreeToChildTree();
+                childTree.back().pop_back();
             }
             else if(match(NUM)){
             	operandTree.push_back(new Tree<SyntaxInfo>());
@@ -830,12 +860,11 @@ namespace Parser
             		exprType.back().first.back().push_back(INT_LITERAL);
             	}
                 if(!simpleExpression()){
-                	popSimpleExpressionTree();
+                	//popSimpleExpressionTree();
                     return false;
                 }
-                else{
-                	popSimpleExpressionTree();
-                }
+               attachOperandTreeToChildTree();
+               childTree.back().pop_back();
             }
             else{
             	--exprTypeLevel.back(); //for "return;"
@@ -944,23 +973,29 @@ namespace Parser
         bool simpleExpression() //additiveExpression, [relop, factor, additiveExpression]];
                                 //additiveExpression can be empty
         {
-        	empty.push_back(true);
+        	Tree<SyntaxInfo>* lhs = NULL;
+        	Tree<SyntaxInfo>* op = NULL;
+        	Tree<SyntaxInfo>* rhs = NULL;
         	toPopBackinSE.push_back(0);
-        	higherPrec.push_back(true);
-        	if(additiveExpression()){
+        	empty.push_back(true);
+        	bool rightAfterComp = false;
+        	bool foundComp = false;
+        	if(additiveExpression(rightAfterComp)){
 				if(relop()){
-					if(empty.back()){
-						if(!simpleExpressionHigherPrecAttach('>')){
-							return false;
-						}
+					if(!empty.back()){
+						buildNextExprTreePart(-1, false);
 					}
-					else if(!simpleExpressionAttach('>'))
-					{
+	        		lhs = operandTree.back();
+	        		operandTree.pop_back();
+	        		empty.back() = true;
+					foundComp = true;
+					op = new Tree<SyntaxInfo>;
+					op->val.syntaxFlag = opFlag;
+					rightAfterComp = true;
+					if(!factor()){
 						return false;
 					}
-					empty.back() = false;
-					higherPrec.back() = true;
-					if(additiveExpression()){}
+					if(additiveExpression(rightAfterComp)){}
 					else{
 						return false;
 					}
@@ -969,38 +1004,39 @@ namespace Parser
         	else{
         		return false;
         	}
-        	if(empty.back()){
-        		attachOperandTreeToChildTree();
-        		childTree.back().pop_back();
+        	if(!empty.back()){
+        		buildNextExprTreePart(-1, false);
         	}
+        	if(foundComp){
+        		rhs = operandTree.back();
+        		operandTree.pop_back();
+        		op->connectChild(lhs);
+        		op->connectChild(rhs);
+        		operandTree.push_back(op);
+        	}
+        	toPopBackinSE.pop_back();
         	empty.pop_back();
-        	higherPrec.pop_back();
         	return true;
         }
 
-        bool additiveExpression() //term, {addop, factor}, term;
+        bool additiveExpression(bool& rightAfterComp) //term, {addop, factor, term};
                                   //term can be empty
         {
-        	if(term()){
+        	if(term(rightAfterComp)){
         		if(addop()){
+        			buildNextExprTreePart(opFlag, false);
+        			rightAfterComp = false;
         			empty.back() = false;
-        			if(higherPrec.back()){
-        				higherPrec.back() = false;
-                		if(!simpleExpressionHigherPrecAttach('+')){ //calls factor()
-                			return false;
-                		}
+        			if(!factor()){
+        				return false;
         			}
-        			else{
-        				if(!simpleExpressionAttach('+')){ //calls factor()
-        					return false;
-        				}
-        			}
-        			if(term()){}
+        			if(term(rightAfterComp)){}
         			while(addop()){
-						if(!simpleExpressionAttach('+')){ //calls factor()
+        				buildNextExprTreePart(opFlag, false);
+        				if(!factor()){
 							return false;
 						}
-						if(term()){}
+						if(term(rightAfterComp)){}
 						else{
 							return false;
 						}
@@ -1013,16 +1049,18 @@ namespace Parser
         	return true;
         }
 
-        bool term() //{mulop, factor};
+        bool term(bool& rightAfterComp) //{mulop, factor};
         {
         	if(mulop()){
-        		higherPrec.back() = false;
+        		rightAfterComp = false;
+        		buildNextExprTreePart(opFlag, true);
         		empty.back() = false;
-        		if(!simpleExpressionHigherPrecAttach('*')){ //calls factor()
+        		if(!factor()){
         			return false;
         		}
         		while(mulop()){
-					if(!simpleExpressionAttach('*')){ //calls factor()
+        			buildNextExprTreePart(opFlag, true);
+					if(!factor()){
 						return false;
 					}
 				}
