@@ -15,6 +15,11 @@ struct SyntaxInfo
 		  typeFlag(-1),
 		  name() {}
 
+	SyntaxInfo(int syntaxFlag, int typeFlag, std::string name)
+		: syntaxFlag(syntaxFlag),
+		  typeFlag(typeFlag),
+		  name(name) {}
+
 	//syntax flags
 	enum
 	{
