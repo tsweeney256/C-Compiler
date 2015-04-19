@@ -308,7 +308,6 @@ namespace Parser
             else{
             	return false;
             }
-        	childTree.back().pop_back();
             childTree.back().pop_back();
             return true;
         }
