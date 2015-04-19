@@ -16,6 +16,8 @@ namespace IntermediateCode
     {
     	typedef std::pair<SyntaxInfo, bool> SyntaxAndPointer;
     	typedef std::vector<SyntaxAndPointer> SyntaxAndPointerStack;
+    	typedef std::pair<SyntaxInfo, std::string> VarAndSize;
+    	typedef std::stack<VarAndSize> VarList;
 
     	static const int bufSize = 32; //for converting integers into strings
 
@@ -213,24 +215,52 @@ namespace IntermediateCode
         std::stack<int> writeIfLabelLater;
         std::stack<int> writeWhileLableLater;
         std::stack<int> writeVarLabelLater;
+        int writeBlockJumpLater = 0;
         std::stack<SyntaxInfo> opStack;
         std::stack<std::vector<std::string> > pointerVars; //solely for array parameters which are pass by reference
+        std::stack<VarList> vars;
         bool isFuncVoid = false;
+        std::stack<bool> isFunc;
+        int depth = 0;
 
         writeLater.push(SyntaxAndPointerStack());
         for(Tree<SyntaxInfo>::preorder_iterator it = syntaxTree->preorder_begin(); it != syntaxTree->preorder_end(); ++it){
             switch(it->syntaxFlag)
             {
             case SyntaxInfo::PROGRAM:
+            	vars.push(VarList());
+            	isFunc.push(false);
                 formattedOutput("START", output, 2);
                 formattedOutput("100\n", output, 3);
-                formattedOutput("BLOC\n", output, 2);
+                formattedOutput("FCLL", output, 2);
+                formattedOutput("_main\n", output, 1);
+                formattedOutput("+J", output, 2);
+                formattedOutput("__end\n", output, 3);
                 break;
             case SyntaxInfo::EXIT_PROGRAM:
+            	formattedOutput("__end", output, 1);
             	formattedOutput("RSUB\n", output, 2);
-            	formattedOutput("END", output, 2);
+            	formattedOutput("END\n", output, 2);
+            	//write global data after END to avoid executing data
+            	while(!vars.top().empty()){
+            		formattedOutput(vars.top().top().first.name, output, 1);
+            		if(vars.top().top().first.typeFlag == SyntaxInfo::INT){
+            			formattedOutput("WORD\n", output, 2);
+            		}
+            		else if(vars.top().top().first.typeFlag == SyntaxInfo::FLOAT){
+            			formattedOutput("RESW", output, 2);
+            			formattedOutput("2\n", output, 3);
+            		}
+            		else{
+            			formattedOutput("RESW", output, 2);
+            			formattedOutput(vars.top().top().second + "\n", output, 3);
+            		}
+            		vars.top().pop();
+            	}
             	break;
             case SyntaxInfo::VAR_DEC:
+            	vars.top().push(VarAndSize(*it, ""));
+
                 /*finalOutput << it->name << "";
                 if(it->typeFlag == SyntaxInfo::INT){
                     finalOutput << "WORD" << std::endl;
@@ -250,6 +280,7 @@ namespace IntermediateCode
                 }*/
                 break;
             case SyntaxInfo::ARRAY_DEC_SIZE:
+            	vars.top().top().second = it->name;
                 /*if(arrayDecIsInt){
                     stream << it->name << std::endl;
                 }
@@ -260,6 +291,7 @@ namespace IntermediateCode
                 }*/
                 break;
             case SyntaxInfo::FUN_DEC:
+            	isFunc.push(true);
             	if(it->typeFlag == SyntaxInfo::VOID){
             		isFuncVoid = true;
             	}
@@ -294,12 +326,45 @@ namespace IntermediateCode
             	}
             	break;
             case SyntaxInfo::COMPOUND_STMT:
+            	++depth;
             	formattedOutput("BLOC\n", output, 2);
+            	vars.push(VarList());
             	break;
             case SyntaxInfo::EXIT_COMPOUND_STMT:
+            {
+            	std::stringstream jbloc;
+            	if(depth > 1){
+					jbloc << "__JBLOC" << writeBlockJumpLater++;
+					formattedOutput("+J", output, 2);
+					formattedOutput(jbloc.str() + "\n", output, 3);
+            	}
+            	if(depth == 1){
+            		formattedOutput("FJBK\n", output, 2);
+            	}
+            	while(!vars.top().empty()){
+            		formattedOutput(vars.top().top().first.name, output, 1);
+            		if(vars.top().top().first.typeFlag == SyntaxInfo::INT){
+            			formattedOutput("WORD\n", output, 2);
+            		}
+            		else if(vars.top().top().first.typeFlag == SyntaxInfo::FLOAT){
+            			formattedOutput("RESW", output, 2);
+            			formattedOutput("2\n", output, 3);
+            		}
+            		else{
+            			formattedOutput("RESW", output, 2);
+            			formattedOutput(vars.top().top().second + "\n", output, 3);
+            		}
+            		vars.top().pop();
+            	}
             	formattedOutput("END", output, 2);
             	formattedOutput("BLOC\n", output, 3);
+            	if(depth > 1){
+            		formattedOutput(jbloc.str(), output, 1);
+            	}
+            	vars.pop();
+            	--depth;
                 break;
+            }
             case SyntaxInfo::LOCAL_DECS:
             		/*finalOutput << it->name << "";
             		if(it->typeFlag == SyntaxInfo::INT){
