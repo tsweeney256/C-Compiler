@@ -392,12 +392,6 @@ namespace IntermediateCode
             	formattedOutput("+LDX", output, 2);
             	formattedOutput(operandPrefix(writeLater.top().back()) + writeLater.top().back().first.name + "\n", output, 3);
                 writeLater.pop();
-//                {
-//                	std::stringstream temp;
-//                	temp << "__t" << varCounter;
-//                	writeLater.top().push_back(SyntaxAndPointer(SyntaxInfo(SyntaxInfo::VAR, -1, temp.str()), false));
-//                	handleExpression(varCounter, compCounter, writeLater.top(), output);
-//                }
                 formattedOutput("+LDA", output, 2);
                 formattedOutput(array + ",X" + "\n", output, 3);
                 writeVarLabelLater.push(varCounter);
@@ -424,6 +418,15 @@ namespace IntermediateCode
             case SyntaxInfo::EXIT_CALL:
             	formattedOutput("FCLL", output, 2);
             	formattedOutput(writeLater.top().back().first.name + "\n", output, 3);
+            	writeLater.top().pop_back();
+            	formattedOutput("SDR", output, 2);
+            	{
+            		std::stringstream temp;
+            		temp << "__t" << varCounter++;
+            		writeLater.top().push_back(SyntaxAndPointer(SyntaxInfo(SyntaxInfo::VAR, -1, temp.str()), true));
+            		formattedOutput(temp.str() + "\n", output, 3);
+            		handleExpression(varCounter, compCounter, writeLater.top(), output);
+            	}
             	break;
             case SyntaxInfo::ARG:
             	writeLater.push(SyntaxAndPointerStack());
