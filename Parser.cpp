@@ -108,6 +108,7 @@ namespace Parser
         std::vector<bool> empty;
         //hack so expressions like "foo(x[foo(1)])" with mismatching parenthesis don't get accepted
         std::vector<bool> supposedToBeACall;
+        std::vector<std::vector<Tree<SyntaxInfo>*> > operatorTrees;
 
         bool match(const std::string& str)
         {
@@ -196,6 +197,7 @@ namespace Parser
 						op->connectChild(lhs);
 						op->connectChild(rhs);
 						operandTree.push_back(op);
+						operatorTrees.back().push_back(op);
 						--toPopBackinSE.back();
 					}
 				}
@@ -210,6 +212,7 @@ namespace Parser
         {
             syntaxTree->val.syntaxFlag = SyntaxInfo::PROGRAM;
             childTree.push_back(std::vector<Tree<SyntaxInfo>*>());
+            operatorTrees.push_back(std::vector<Tree<SyntaxInfo>*>());
         	if(lex.eof()){
         		return false;
         	}
@@ -756,6 +759,7 @@ namespace Parser
                     if(match("=")){
 						childTree.back().push_back(new Tree<SyntaxInfo>());
 						childTree.back().back()->val.syntaxFlag = SyntaxInfo::ASSIGNMENT;
+						operatorTrees.back().push_back(childTree.back().back());
 						attachLastChildTree();
 						attachOperandTreeToChildTree();
 						childTree.back().pop_back();
@@ -815,6 +819,7 @@ namespace Parser
             		operandTree.back()->val.syntaxFlag = SyntaxInfo::INT_LITERAL;
             		exprType.back().first.back().push_back(INT_LITERAL);
             	}
+            	operatorTrees.back().push_back(operandTree.back());
                 if(!simpleExpression()){
                 	//popSimpleExpressionTree();
                     return false;
@@ -864,6 +869,15 @@ namespace Parser
 						break;
 					}
 				}
+				while(!operatorTrees.back().empty()){
+					if(expressionType == INT_LITERAL){
+						operatorTrees.back().back()->val.typeFlag = SyntaxInfo::INT;
+					}
+					else{
+						operatorTrees.back().back()->val.typeFlag = expressionType;
+					}
+					operatorTrees.back().pop_back();
+				}
 				exprType.back().first.clear();
             }
             --exprTypeLevel.back();
@@ -882,11 +896,14 @@ namespace Parser
         		childTree.back().back()->val.syntaxFlag = SyntaxInfo::INDEX;
         		operandTree.push_back(childTree.back().back());
         		exprTypeLevel.push_back(-1);
+                operatorTrees.push_back(std::vector<Tree<SyntaxInfo>*>());
 				if(exprType.back().first.back().back() == SymbolTable::INT_ARRAY){
 					exprType.back().first.back().back() = SymbolTable::INT;
+					operandTree.back()->val.typeFlag = SymbolTable::INT;
 				}
 				else if(exprType.back().first.back().back() == SymbolTable::FLOAT_ARRAY){
 					exprType.back().first.back().back() = SymbolTable::FLOAT;
+					operandTree.back()->val.typeFlag = SymbolTable::FLOAT;
 				}
 				else{
 					semanticError = true;
@@ -913,6 +930,7 @@ namespace Parser
         		}
         		//operandTree.back()->connectChild(childTree.back().back());
         		childTree.pop_back();
+        		operatorTrees.pop_back();
         		if(expressionType != SymbolTable::INT && expressionType != INT_LITERAL){
 					semanticError = true;
 					if(showingErrorMsgs){
@@ -934,6 +952,7 @@ namespace Parser
             	operandTree.push_back(new Tree<SyntaxInfo>());
             	operandTree.back()->val.syntaxFlag = SyntaxInfo::VAR;
             	operandTree.back()->val.name = std::string("_") + varName;
+            	operandTree.back()->val.typeFlag = exprType.back().first.back().back();
         	}
         	return true;
         }
@@ -958,6 +977,7 @@ namespace Parser
 					foundComp = true;
 					op = new Tree<SyntaxInfo>;
 					op->val.syntaxFlag = opFlag;
+					operatorTrees.back().push_back(op);
 					if(!factor()){
 						return false;
 					}
@@ -1138,6 +1158,7 @@ namespace Parser
             		operandTree.back()->val.syntaxFlag = SyntaxInfo::INT_LITERAL;
             		exprType.back().first.back().push_back(INT_LITERAL);
             	}
+            	operatorTrees.back().push_back(operandTree.back());
         	}
         	else{
         		return false;
@@ -1205,6 +1226,7 @@ namespace Parser
     		childTree.push_back(std::vector<Tree<SyntaxInfo>*>());
     		childTree.back().push_back(new Tree<SyntaxInfo>());
     		childTree.back().back()->val.syntaxFlag = SyntaxInfo::ARG;
+            operatorTrees.push_back(std::vector<Tree<SyntaxInfo>*>());
         	exprTypeLevel.push_back(-1);
         	exprType.push_back(std::make_pair(std::vector<std::vector<int> >(), FUNC_ARG));
         	if(!expression()){
@@ -1222,10 +1244,12 @@ namespace Parser
     		childTree.back().back()->val.syntaxFlag = SyntaxInfo::EXIT_ARG;
     		attachLastChildTree();
     		childTree.pop_back();
+    		operatorTrees.pop_back();
         	while(match(",")){
         		childTree.push_back(std::vector<Tree<SyntaxInfo>*>());
         		childTree.back().push_back(new Tree<SyntaxInfo>());
         		childTree.back().back()->val.syntaxFlag = SyntaxInfo::ARG;
+                operatorTrees.push_back(std::vector<Tree<SyntaxInfo>*>());
         		exprTypeLevel.push_back(-1);
         		exprType.push_back(std::make_pair(std::vector<std::vector<int> >(), FUNC_ARG));
         		if(!expression()){
@@ -1241,6 +1265,7 @@ namespace Parser
         		childTree.back().back()->val.syntaxFlag = SyntaxInfo::EXIT_ARG;
         		attachLastChildTree();
         		childTree.pop_back();
+        		operatorTrees.pop_back();
         	}
         	if(sig && types.size() != sig->size()){
         		semanticError = true;
