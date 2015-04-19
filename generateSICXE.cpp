@@ -181,14 +181,14 @@ namespace IntermediateCode
 
 			formattedOutput("__TRUE" + compCounterStr, output, 1);
 			formattedOutput("+LDA#", output, 2);
-			formattedOutput((notEQ ? "0" : "1") + std::string("\n"), output, 3);
+			formattedOutput((notEQ ? "#0" : "#1") + std::string("\n"), output, 3);
 
 			formattedOutput("+J", output, 2);
 			formattedOutput("__CONT" + compCounterStr + "\n", output, 3);
 
 			formattedOutput("__FALSE" + compCounterStr, output, 1);
 			formattedOutput("+LDA", output, 2);
-			formattedOutput((notEQ ? "1" : "0") + std::string("\n"), output, 3);
+			formattedOutput((notEQ ? "#1" : "#0") + std::string("\n"), output, 3);
 
 			formattedOutput("__CONT" + compCounterStr, output, 1);
 			formattedOutput("+STA", output, 2);
@@ -213,6 +213,7 @@ namespace IntermediateCode
         std::stack<int> writeWhileLableLater;
         std::stack<int> writeVarLabelLater;
         std::stack<SyntaxInfo> opStack;
+        bool isFuncVoid = false;
 
         writeLater.push(SyntaxAndPointerStack());
         for(Tree<SyntaxInfo>::preorder_iterator it = syntaxTree->preorder_begin(); it != syntaxTree->preorder_end(); ++it){
@@ -223,6 +224,10 @@ namespace IntermediateCode
                 formattedOutput("100\n", output, 3);
                 formattedOutput("BLOC\n", output, 2);
                 break;
+            case SyntaxInfo::EXIT_PROGRAM:
+            	formattedOutput("RSUB\n", output, 2);
+            	formattedOutput("END", output, 2);
+            	break;
             case SyntaxInfo::VAR_DEC:
                 /*finalOutput << it->name << "";
                 if(it->typeFlag == SyntaxInfo::INT){
@@ -253,6 +258,12 @@ namespace IntermediateCode
                 }*/
                 break;
             case SyntaxInfo::FUN_DEC:
+            	if(it->typeFlag == SyntaxInfo::VOID){
+            		isFuncVoid = true;
+            	}
+            	else{
+            		isFuncVoid = false;
+            	}
                 writeLater.top().push_back(std::pair<SyntaxInfo, bool>(*it, false)); //gotta write parameters first
                 break;
             case SyntaxInfo::PARAMS:
@@ -359,38 +370,36 @@ namespace IntermediateCode
             case SyntaxInfo::RETURN:
                 break;
             case SyntaxInfo::EXIT_RETURN_STMT:
-            	formattedOutput("FRET", output, 2);
-            	formattedOutput(operandPrefix(writeLater.top().back()) + writeLater.top().back().first.name + "\n", output, 3);
-                writeLater.top().pop_back();
+            	if(!isFuncVoid){
+					formattedOutput("FRET", output, 2);
+					formattedOutput(operandPrefix(writeLater.top().back()) + writeLater.top().back().first.name + "\n", output, 3);
+					writeLater.top().pop_back();
+            	}
                 break;
             case SyntaxInfo::INT_LITERAL:
             case SyntaxInfo::FLOAT_LITERAL:
             case SyntaxInfo::VAR:
             	writeLater.top().push_back(SyntaxAndPointer(*it, false));
-            	//if the top two items on the stack are operands
-            	if(writeLater.top().size() > 2 &&
-            			(writeLater.top().back().first.syntaxFlag == SyntaxInfo::INT_LITERAL ||
-            			writeLater.top().back().first.syntaxFlag == SyntaxInfo::FLOAT_LITERAL ||
-						writeLater.top().back().first.syntaxFlag == SyntaxInfo::VAR) &&
-            			(writeLater.top()[writeLater.top().size()-2].first.syntaxFlag == SyntaxInfo::INT_LITERAL ||
-            			writeLater.top()[writeLater.top().size()-2].first.syntaxFlag == SyntaxInfo::FLOAT_LITERAL ||
-						writeLater.top()[writeLater.top().size()-2].first.syntaxFlag == SyntaxInfo::VAR)){
-
-
-            		handleExpression(varCounter, compCounter, writeLater.top(), output);
-            	}
+            	handleExpression(varCounter, compCounter, writeLater.top(), output);
                 break;
             case SyntaxInfo::INDEX:
             	writeLater.push(SyntaxAndPointerStack());
             	break;
             case SyntaxInfo::EXIT_INDEX:
+            {
+            	std::string array = operandPrefix(writeLater.top().back()) + writeLater.top().back().first.name;
+            	writeLater.top().pop_back();
             	formattedOutput("+LDX", output, 2);
             	formattedOutput(operandPrefix(writeLater.top().back()) + writeLater.top().back().first.name + "\n", output, 3);
-                writeLater.top().pop_back();
                 writeLater.pop();
+//                {
+//                	std::stringstream temp;
+//                	temp << "__t" << varCounter;
+//                	writeLater.top().push_back(SyntaxAndPointer(SyntaxInfo(SyntaxInfo::VAR, -1, temp.str()), false));
+//                	handleExpression(varCounter, compCounter, writeLater.top(), output);
+//                }
                 formattedOutput("+LDA", output, 2);
-                formattedOutput(operandPrefix(writeLater.top().back()) + writeLater.top().back().first.name + ",X" + "\n", output, 3);
-                writeLater.top().pop_back();
+                formattedOutput(array + ",X" + "\n", output, 3);
                 writeVarLabelLater.push(varCounter);
                 {
                     SyntaxInfo temp;
@@ -405,8 +414,10 @@ namespace IntermediateCode
                 	std::stringstream temp;
                 	temp << "__t" << varCounter++ << "\n";
                 	formattedOutput(temp.str(), output, 3);
+                	handleExpression(varCounter, compCounter, writeLater.top(), output);
                 }
                 break;
+            }
             case SyntaxInfo::CALL:
             	writeLater.top().push_back(SyntaxAndPointer(*it, false)); //need to see args before calling
             	break;
