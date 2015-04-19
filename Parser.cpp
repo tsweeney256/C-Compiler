@@ -344,7 +344,7 @@ namespace Parser
             	if(match(NUM)){
             		childTree.back().push_back(new Tree<SyntaxInfo>());
             		childTree.back().back()->val.syntaxFlag = SyntaxInfo::ARRAY_DEC_SIZE;
-                    childTree.back().back()->val.name = std::string("_") + nameDecl;
+                    childTree.back().back()->val.name = nameDecl;
                     attachLastChildTree();
                     childTree.back().pop_back();
             	}
@@ -525,7 +525,7 @@ namespace Parser
         			childTree.back().push_back(new Tree<SyntaxInfo>());
         			childTree.back().back()->val.syntaxFlag = SyntaxInfo::VAR_DEC;
         			childTree.back().back()->val.typeFlag = SyntaxInfo::INT;
-        			childTree.back().back()->val.name = nameDecl;
+        			childTree.back().back()->val.name = "_" + nameDecl;
         			if(!(match(ID) && varDeclaration())){
         				isDone = true;
         				return false;
@@ -539,7 +539,7 @@ namespace Parser
         			childTree.back().push_back(new Tree<SyntaxInfo>());
         			childTree.back().back()->val.syntaxFlag = SyntaxInfo::VAR_DEC;
         			childTree.back().back()->val.typeFlag = SyntaxInfo::FLOAT;
-        			childTree.back().back()->val.name = nameDecl;
+        			childTree.back().back()->val.name = "_" + nameDecl;
         			if(!(match(ID) && varDeclaration())){
 						isDone = true;
 						return false;
