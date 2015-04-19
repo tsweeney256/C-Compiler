@@ -23,10 +23,10 @@ namespace IntermediateCode
 
     	void formattedOutput(const std::string& input, std::stringstream& output, int column);
     	std::string operandPrefix(const SyntaxAndPointer& operand);
-    	void handleExpression(int& varCounter, int& compCounter, SyntaxAndPointerStack& writeLater, std::stringstream& stream);
-    	void printBinaryOperation(std::string op, int& varCounter, SyntaxAndPointerStack& writeLater, std::stringstream& output);
+    	void handleExpression(int& varCounter, int& compCounter, SyntaxAndPointerStack& writeLater, std::stack<VarList>& vars, std::stringstream& output);
+    	void printBinaryOperation(std::string op, int& varCounter, SyntaxAndPointerStack& writeLater, std::stack<VarList>& vars, std::stringstream& output);
     	void printCompOperation(std::string op, bool notEq, bool alsoEQ, int& varCounter, int &compCounter,
-    			SyntaxAndPointerStack& writeLater, std::stringstream& output);
+    			SyntaxAndPointerStack& writeLater, std::stack<VarList>& vars, std::stringstream& output);
 
     	void formattedOutput(const std::string& input, std::stringstream& output, int column)
     	{
@@ -71,7 +71,7 @@ namespace IntermediateCode
         	return (operand.first.syntaxFlag == SyntaxInfo::VAR ? (operand.second ? "@" : "") : "#");
         }
 
-        void handleExpression(int& varCounter, int& compCounter, SyntaxAndPointerStack& writeLater, std::stringstream& output)
+        void handleExpression(int& varCounter, int& compCounter, SyntaxAndPointerStack& writeLater, std::stack<VarList>& vars,std::stringstream& output)
         {
         	//while the top two items on the stack are operands
         	while(writeLater.size() > 2 &&
@@ -81,16 +81,28 @@ namespace IntermediateCode
         			(writeLater[writeLater.size()-2].first.syntaxFlag == SyntaxInfo::INT_LITERAL ||
         			writeLater[writeLater.size()-2].first.syntaxFlag == SyntaxInfo::FLOAT_LITERAL ||
 					writeLater[writeLater.size()-2].first.syntaxFlag == SyntaxInfo::VAR)){
+
+        		int type = writeLater.back().first.typeFlag;
         		switch(writeLater[writeLater.size()-3].first.syntaxFlag)
         		{
         		case SyntaxInfo::ASSIGNMENT:
         		{
         			SyntaxAndPointer lhs;
-        			formattedOutput("+LDA", output, 2);
+        			if(writeLater.back().first.typeFlag == SyntaxInfo::INT){
+        				formattedOutput("+LDA", output, 2);
+        			}
+        			else{
+        				formattedOutput("+LDF", output, 2);
+        			}
         			formattedOutput(operandPrefix(writeLater.back()) + writeLater.back().first.name + "\n", output, 3);
                 	writeLater.pop_back();
                 	lhs = writeLater.back();
-                	formattedOutput("+STA", output, 2);
+                	if(writeLater.back().first.typeFlag == SyntaxInfo::INT){
+                		formattedOutput("+STA", output, 2);
+                	}
+                	else{
+                		formattedOutput("+STF", output, 2);
+                	}
                 	formattedOutput(operandPrefix(writeLater.back()) + writeLater.back().first.name + "\n", output, 3);
                 	writeLater.pop_back();
                 	writeLater.pop_back();
@@ -98,51 +110,82 @@ namespace IntermediateCode
         			break;
         		}
                 case SyntaxInfo::ADD:
-                	printBinaryOperation("+ADD", varCounter, writeLater, output);
+                	if(type == SyntaxInfo::INT){
+                		printBinaryOperation("+ADD", varCounter, writeLater, vars, output);
+                	}
+                	else{
+                		printBinaryOperation("+ADDF", varCounter, writeLater, vars, output);
+                	}
                 	break;
                 case SyntaxInfo::SUB:
-                	printBinaryOperation("+SUB", varCounter, writeLater, output);
+                	if(type == SyntaxInfo::INT){
+                		printBinaryOperation("+SUB", varCounter, writeLater, vars, output);
+                	}
+                	else{
+                		printBinaryOperation("+SUBF", varCounter, writeLater, vars, output);
+                	}
                 	break;
                 case SyntaxInfo::MULT:
-                	printBinaryOperation("+MUL", varCounter, writeLater, output);
+                	if(type == SyntaxInfo::INT){
+                		printBinaryOperation("+MUL", varCounter, writeLater, vars, output);
+                	}
+                	else{
+                		printBinaryOperation("+MULF", varCounter, writeLater, vars, output);
+                	}
                 	break;
                 case SyntaxInfo::DIV:
-                	printBinaryOperation("+DIV", varCounter, writeLater, output);
+                	if(type == SyntaxInfo::INT){
+                		printBinaryOperation("+DIV", varCounter, writeLater, vars, output);
+                	}
+                	else{
+                		printBinaryOperation("+DIVF", varCounter, writeLater, vars, output);
+                	}
                 	break;
                 case SyntaxInfo::EQ:
-                	printCompOperation("+JEQ", false, false, varCounter, compCounter, writeLater, output);
+                	printCompOperation("+JEQ", false, false, varCounter, compCounter, writeLater, vars, output);
                 	break;
                 case SyntaxInfo::NEQ:
-                	printCompOperation("+JEQ", true, false, varCounter, compCounter, writeLater, output);
+                	printCompOperation("+JEQ", true, false, varCounter, compCounter, writeLater, vars, output);
                 	break;
                 case SyntaxInfo::GT:
-                	printCompOperation("+JGT", false, false, varCounter, compCounter, writeLater, output);
+                	printCompOperation("+JGT", false, false, varCounter, compCounter, writeLater, vars, output);
                 	break;
                 case SyntaxInfo::GTEQ:
-                	printCompOperation("+JGT", false, true, varCounter, compCounter, writeLater, output);
+                	printCompOperation("+JGT", false, true, varCounter, compCounter, writeLater, vars, output);
                 	break;
                 case SyntaxInfo::LT:
-                	printCompOperation("+JLT", false, false, varCounter, compCounter, writeLater, output);
+                	printCompOperation("+JLT", false, false, varCounter, compCounter, writeLater, vars, output);
                 	break;
                 case SyntaxInfo::LTEQ:
-                	printCompOperation("+JLT", false, true, varCounter, compCounter, writeLater, output);
+                	printCompOperation("+JLT", false, true, varCounter, compCounter, writeLater, vars, output);
                 	break;
         		}
         	}
         }
 
-        void printBinaryOperation(std::string op, int& varCounter, SyntaxAndPointerStack& writeLater, std::stringstream& output)
+        void printBinaryOperation(std::string op, int& varCounter, SyntaxAndPointerStack& writeLater, std::stack<VarList>& vars, std::stringstream& output)
         {
         	std::string rhs = writeLater.back().first.name;
         	std::string rhsPrefix = operandPrefix(writeLater.back());
         	writeLater.pop_back();
-        	formattedOutput("+LDA", output, 2);
+        	int type = writeLater.back().first.typeFlag;
+        	if(type == SyntaxInfo::INT){
+        		formattedOutput("+LDA", output, 2);
+        	}
+        	else{
+        		formattedOutput("+LDF", output, 2);
+        	}
         	formattedOutput(operandPrefix(writeLater.back()) + writeLater.back().first.name + "\n", output, 3);
         	formattedOutput(op, output, 2);
         	formattedOutput(rhsPrefix + rhs + "\n", output, 3);
 			writeLater.pop_back();
 			writeLater.pop_back(); //pop operator
-			formattedOutput("+STA", output, 2);
+			if(type == SyntaxInfo::INT){
+				formattedOutput("+STA", output, 2);
+			}
+			else{
+				formattedOutput("+STF", output, 2);
+			}
 			{
 				std::stringstream temp;
 				temp << "__t" << varCounter << "\n";
@@ -150,20 +193,32 @@ namespace IntermediateCode
 			}
 			char tempVarNum[bufSize];
 			snprintf(tempVarNum, bufSize, "%d", varCounter++);
-			writeLater.push_back(SyntaxAndPointer(SyntaxInfo(SyntaxInfo::VAR, -1, std::string("__t") + std::string(tempVarNum)), false));
+			SyntaxInfo temp(SyntaxInfo::VAR, type, std::string("__t") + std::string(tempVarNum));
+			writeLater.push_back(SyntaxAndPointer(temp, false));
+			vars.top().push(VarAndSize(temp, ""));
         }
 
-        void printCompOperation(std::string op, bool notEQ, bool alsoEQ, int& varCounter, int &compCounter,
-        		SyntaxAndPointerStack& writeLater, std::stringstream& output)
+        void printCompOperation(std::string op, bool notEq, bool alsoEQ, int& varCounter, int &compCounter,
+            			SyntaxAndPointerStack& writeLater, std::stack<VarList>& vars, std::stringstream& output)
         {
         	std::string rhs = writeLater.back().first.name;
         	std::string rhsPrefix = operandPrefix(writeLater.back());
         	writeLater.pop_back();
-
-        	formattedOutput("+LDA", output, 2);
+        	int type = writeLater.back().first.typeFlag;
+			if(type == SyntaxInfo::INT){
+				formattedOutput("+LDF", output, 2);
+			}
+			else{
+				formattedOutput("+LDF", output, 2);
+			}
         	formattedOutput(operandPrefix(writeLater.back()) + writeLater.back().first.name + "\n", output, 3);
 
-        	formattedOutput("+COMP", output, 2);
+			if(type == SyntaxInfo::INT){
+				formattedOutput("+COMP", output, 2);
+			}
+			else{
+				formattedOutput("+COMPF", output, 2);
+			}
         	formattedOutput(rhsPrefix + rhs + "\n", output, 3);
 
 			writeLater.pop_back();
@@ -183,23 +238,40 @@ namespace IntermediateCode
 			formattedOutput("__FALSE" + compCounterStr + "\n", output, 3);
 
 			formattedOutput("__TRUE" + compCounterStr, output, 1);
-			formattedOutput("+LDA#", output, 2);
-			formattedOutput((notEQ ? "#0" : "#1") + std::string("\n"), output, 3);
+			if(type == SyntaxInfo::INT){
+				formattedOutput("+LDA#", output, 2);
+			}
+			else{
+				formattedOutput("+LDF#", output, 2);
+			}
+			formattedOutput((notEq ? "#0" : "#1") + std::string("\n"), output, 3);
 
 			formattedOutput("+J", output, 2);
 			formattedOutput("__CONT" + compCounterStr + "\n", output, 3);
 
 			formattedOutput("__FALSE" + compCounterStr, output, 1);
-			formattedOutput("+LDA", output, 2);
-			formattedOutput((notEQ ? "#1" : "#0") + std::string("\n"), output, 3);
+			if(type == SyntaxInfo::INT){
+				formattedOutput("+LDA", output, 2);
+			}
+			else{
+				formattedOutput("+LDF", output, 2);
+			}
+			formattedOutput((notEq ? "#1" : "#0") + std::string("\n"), output, 3);
 
 			formattedOutput("__CONT" + compCounterStr, output, 1);
-			formattedOutput("+STA", output, 2);
+			if(type == SyntaxInfo::INT){
+				formattedOutput("+STA", output, 2);
+			}
+			else{
+				formattedOutput("+STF", output, 2);
+			}
 
 			char tempVarNum[bufSize];
 			snprintf(tempVarNum, bufSize, "%d", varCounter++);
-			writeLater.push_back(SyntaxAndPointer(SyntaxInfo(SyntaxInfo::VAR, -1, std::string("__t") + std::string(tempVarNum)), false));
+			SyntaxInfo tempSI(SyntaxInfo::VAR, type, std::string("__t") + std::string(tempVarNum));
+			writeLater.push_back(SyntaxAndPointer(tempSI, false));
 			formattedOutput(std::string("__t") + tempVarNum + "\n", output, 3);
+			vars.top().push(VarAndSize(tempSI, ""));
         }
     }
 
@@ -251,44 +323,25 @@ namespace IntermediateCode
             			formattedOutput("RESW", output, 2);
             			formattedOutput("2\n", output, 3);
             		}
-            		else{
+            		else if(vars.top().top().first.typeFlag == SyntaxInfo::INT_ARRAY){
             			formattedOutput("RESW", output, 2);
             			formattedOutput(vars.top().top().second + "\n", output, 3);
+            		}
+            		else{
+            			formattedOutput("RESW", output, 2);
+
+            			std::stringstream temp;
+            			temp << atoi(vars.top().top().second.c_str())*2 << "\n";
+            			formattedOutput(temp.str(), output, 3);
             		}
             		vars.top().pop();
             	}
             	break;
             case SyntaxInfo::VAR_DEC:
             	vars.top().push(VarAndSize(*it, ""));
-
-                /*finalOutput << it->name << "";
-                if(it->typeFlag == SyntaxInfo::INT){
-                    finalOutput << "WORD" << std::endl;
-                }
-                else if(it->typeFlag == SyntaxInfo::INT_ARRAY){
-                    stream << "RESW"; //next iteration will say how large the array is
-                    waitingOnArraySize = true;
-                    arrayDecIsInt = true;
-                }
-                else if(it->typeFlag == SyntaxInfo::FLOAT){
-                    stream << "RESW2" << std::endl; //floats are twice the size of ints
-                }
-                else if(it->typeFlag == SyntaxInfo::FLOAT_ARRAY){
-                    stream << "RESW"; //next iteration will say how large the array is
-                    waitingOnArraySize = true;
-                    arrayDecIsInt = false;
-                }*/
                 break;
             case SyntaxInfo::ARRAY_DEC_SIZE:
             	vars.top().top().second = it->name;
-                /*if(arrayDecIsInt){
-                    stream << it->name << std::endl;
-                }
-                else{
-                	char buffer[32];
-                	snprintf(buffer, 32, "%d", atoi(it->name.c_str())*2); //I miss C++11 :(
-                    stream << buffer << std::endl;
-                }*/
                 break;
             case SyntaxInfo::FUN_DEC:
             	isFunc.push(true);
@@ -350,14 +403,20 @@ namespace IntermediateCode
             			formattedOutput("RESW", output, 2);
             			formattedOutput("2\n", output, 3);
             		}
-            		else{
+            		else if(vars.top().top().first.typeFlag == SyntaxInfo::INT_ARRAY){
             			formattedOutput("RESW", output, 2);
             			formattedOutput(vars.top().top().second + "\n", output, 3);
             		}
+            		else{
+            			formattedOutput("RESW", output, 2);
+
+            			std::stringstream temp;
+            			temp << atoi(vars.top().top().second.c_str())*2 << "\n";
+            			formattedOutput(temp.str(), output, 3);
+            		}
             		vars.top().pop();
             	}
-            	formattedOutput("END", output, 2);
-            	formattedOutput("BLOC\n", output, 3);
+            	formattedOutput("EBLOC\n", output, 2);
             	if(depth > 1){
             		formattedOutput(jbloc.str(), output, 1);
             	}
@@ -366,16 +425,6 @@ namespace IntermediateCode
                 break;
             }
             case SyntaxInfo::LOCAL_DECS:
-            		/*finalOutput << it->name << "";
-            		if(it->typeFlag == SyntaxInfo::INT){
-            			finalOutput << "WORD" << std::endl;
-            		}
-            		else{
-            			finalOutput << "RESW";
-            			if(it->typeFlag == SyntaxInfo::FLOAT){
-            				stream << "2" << std::endl;
-            			}
-            		}*/
             	break;
             case SyntaxInfo::STMT_LIST:
             	break;
@@ -391,10 +440,23 @@ namespace IntermediateCode
             	writeIfLabelLater.push(ifCounter++);
                 break;
             case SyntaxInfo::BEGIN_IF_STMT:
-            	formattedOutput("+LDA", output, 2);
+            {
+            	int type = writeLater.top().back().first.typeFlag;
+
+            	if(type == SyntaxInfo::INT){
+            		formattedOutput("+LDA", output, 2);
+            	}
+            	else{
+            		formattedOutput("+LDF", output, 2);
+            	}
             	formattedOutput(operandPrefix(writeLater.top().back()) + writeLater.top().back().first.name + "\n", output, 3);
                 writeLater.top().pop_back();
-                formattedOutput("+COMP", output, 2);
+            	if(type == SyntaxInfo::INT){
+            		formattedOutput("+COMP", output, 2);
+            	}
+            	else{
+            		formattedOutput("+COMPF", output, 2);
+            	}
                 formattedOutput("#0\n", output, 3);
                 formattedOutput("+JEQ", output, 2);
                 {
@@ -404,6 +466,7 @@ namespace IntermediateCode
                 }
                 //writeIfLabelLater.push(ifCounter++);
                 break;
+            }
             case SyntaxInfo::BEGIN_ELSE_STMT:
 				{
 					std::stringstream temp;
@@ -417,9 +480,22 @@ namespace IntermediateCode
                 writeWhileLableLater.push(whileCounter++);
                 break;
             case SyntaxInfo::BEGIN_WHILE_STMT:
-            	formattedOutput("+LDA", output, 2);
+            {
+            	int type = writeLater.top().back().first.typeFlag;
+
+            	if(type == SyntaxInfo::INT){
+            		formattedOutput("+LDA", output, 2);
+            	}
+            	else{
+            		formattedOutput("+LDF", output, 2);
+            	}
             	formattedOutput(operandPrefix(writeLater.top().back()) + writeLater.top().back().first.name + "\n", output, 3);
-                formattedOutput("+COMP", output, 2);
+            	if(type == SyntaxInfo::INT){
+            		formattedOutput("+COMP", output, 2);
+            	}
+            	else{
+            		formattedOutput("+COMPF", output, 2);
+            	}
                 formattedOutput("#0\n", output, 3);
                 formattedOutput("+JEQ", output, 2);
                 {
@@ -429,6 +505,7 @@ namespace IntermediateCode
                 }
                 writeLater.top().pop_back();
                 break;
+            }
             case SyntaxInfo::EXIT_WHILE_STMT:
             	formattedOutput("+J", output, 2);
             	{
@@ -461,19 +538,26 @@ namespace IntermediateCode
             	else{
             		writeLater.top().push_back(SyntaxAndPointer(*it, false));
             	}
-            	handleExpression(varCounter, compCounter, writeLater.top(), output);
+            	handleExpression(varCounter, compCounter, writeLater.top(), vars, output);
                 break;
             case SyntaxInfo::INDEX:
             	writeLater.push(SyntaxAndPointerStack());
             	break;
             case SyntaxInfo::EXIT_INDEX:
             {
+            	int type = writeLater.top().back().first.typeFlag;
             	std::string array = operandPrefix(writeLater.top().back()) + writeLater.top().back().first.name;
+
             	writeLater.top().pop_back();
             	formattedOutput("+LDX", output, 2);
             	formattedOutput(operandPrefix(writeLater.top().back()) + writeLater.top().back().first.name + "\n", output, 3);
                 writeLater.pop();
-                formattedOutput("+LDA", output, 2);
+                if(type == SyntaxInfo::INT){
+                	formattedOutput("+LDA", output, 2);
+                }
+                else{
+                	formattedOutput("+LDF", output, 2);
+                }
                 formattedOutput(array + ",X" + "\n", output, 3);
                 writeVarLabelLater.push(varCounter);
                 {
@@ -482,14 +566,20 @@ namespace IntermediateCode
                     std::stringstream I_Miss_CPP_11;
                     I_Miss_CPP_11 << "__t" << varCounter;
                     temp.name = I_Miss_CPP_11.str();
+                    temp.typeFlag = type;
                     writeLater.top().push_back(SyntaxAndPointer(temp, false));
                 }
-                formattedOutput("+STA", output, 2);
+                if(type == SyntaxInfo::INT){
+                	formattedOutput("+STA", output, 2);
+                }
+                else{
+                	formattedOutput("+STF", output, 2);
+                }
                 {
                 	std::stringstream temp;
                 	temp << "__t" << varCounter++ << "\n";
                 	formattedOutput(temp.str(), output, 3);
-                	handleExpression(varCounter, compCounter, writeLater.top(), output);
+                	handleExpression(varCounter, compCounter, writeLater.top(), vars, output);
                 }
                 break;
             }
@@ -506,7 +596,7 @@ namespace IntermediateCode
             		temp << "__t" << varCounter++;
             		writeLater.top().push_back(SyntaxAndPointer(SyntaxInfo(SyntaxInfo::VAR, -1, temp.str()), true));
             		formattedOutput(temp.str() + "\n", output, 3);
-            		handleExpression(varCounter, compCounter, writeLater.top(), output);
+            		handleExpression(varCounter, compCounter, writeLater.top(), vars, output);
             	}
             	break;
             case SyntaxInfo::ARG:
