@@ -235,6 +235,8 @@ namespace Parser
             	}
             }
             if(lex.eof()){
+            	syntaxTree->connectChild(new Tree<SyntaxInfo>());
+            	syntaxTree->getChild(syntaxTree->numChildren()-1)->val.syntaxFlag = SyntaxInfo::EXIT_PROGRAM;
             	return true;
             }
             else{
@@ -306,9 +308,6 @@ namespace Parser
             else{
             	return false;
             }
-        	childTree.back().push_back(new Tree<SyntaxInfo>());
-        	childTree.back().back()->val.syntaxFlag = SyntaxInfo::EXIT_PROGRAM;
-        	attachLastChildTree();
         	childTree.back().pop_back();
             childTree.back().pop_back();
             return true;
