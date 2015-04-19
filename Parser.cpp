@@ -870,13 +870,15 @@ namespace Parser
 
         bool var() //["[", expression, "]"];
         {
-        	operandTree.push_back(new Tree<SyntaxInfo>());
-        	operandTree.back()->val.syntaxFlag = SyntaxInfo::VAR;
-        	operandTree.back()->val.name = std::string("_") + nameDecl;
+        	bool isArray = false;
+        	std::string varName = nameDecl;
+
         	if(match("[")){
+        		isArray = true;
         		childTree.push_back(std::vector<Tree<SyntaxInfo>*>());
         		childTree.back().push_back(new Tree<SyntaxInfo>());
         		childTree.back().back()->val.syntaxFlag = SyntaxInfo::INDEX;
+        		operandTree.push_back(childTree.back().back());
         		exprTypeLevel.push_back(-1);
 				if(exprType.back().first.back().back() == SymbolTable::INT_ARRAY){
 					exprType.back().first.back().back() = SymbolTable::INT;
@@ -898,11 +900,16 @@ namespace Parser
         		}
         		else{
             		childTree.back().push_back(new Tree<SyntaxInfo>());
+            		childTree.back().back()->val.syntaxFlag = SyntaxInfo::VAR;
+            		childTree.back().back()->val.name = std::string("_") + varName;
+            		attachLastChildTree();
+            		childTree.back().pop_back();
+            		childTree.back().push_back(new Tree<SyntaxInfo>());
             		childTree.back().back()->val.syntaxFlag = SyntaxInfo::EXIT_INDEX;
             		attachLastChildTree();
             		childTree.back().pop_back();
         		}
-        		operandTree.back()->connectChild(childTree.back().back());
+        		//operandTree.back()->connectChild(childTree.back().back());
         		childTree.pop_back();
         		if(expressionType != SymbolTable::INT && expressionType != INT_LITERAL){
 					semanticError = true;
@@ -920,6 +927,11 @@ namespace Parser
         		if(showingErrorMsgs){
         			std::cout << "Error:" << lastLineNum << ": Trying to use array without indexing it." << std::endl;
         		}
+        	}
+        	if(!isArray){
+            	operandTree.push_back(new Tree<SyntaxInfo>());
+            	operandTree.back()->val.syntaxFlag = SyntaxInfo::VAR;
+            	operandTree.back()->val.name = std::string("_") + varName;
         	}
         	return true;
         }
