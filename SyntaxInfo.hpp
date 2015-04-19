@@ -24,6 +24,7 @@ struct SyntaxInfo
 	enum
 	{
 	    PROGRAM,
+		EXIT_PROGRAM,
 		VAR_DEC,
 		ARRAY_DEC_SIZE,
 		FUN_DEC,
@@ -83,6 +84,8 @@ struct SyntaxInfo
 		switch(flag){
 		case PROGRAM:
 			return "LARCH";
+		case EXIT_PROGRAM:
+			return "EXIT_PROGRAM";
 		case VAR_DEC:
 			return "VAR_DEC";
         case ARRAY_DEC_SIZE:
