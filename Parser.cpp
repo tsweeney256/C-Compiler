@@ -1165,6 +1165,10 @@ namespace Parser
         	if(!(match("(") && args() && match(")"))){
         		return false;
         	}
+        	childTree.back().push_back(new Tree<SyntaxInfo>());
+			childTree.back().back()->val.syntaxFlag = SyntaxInfo::EXIT_CALL;
+			operandTree.back()->connectChild(childTree.back().back());
+        	childTree.back().pop_back();
         	supposedToBeACall.pop_back();
         	return true;
         }
@@ -1234,10 +1238,6 @@ namespace Parser
         		attachLastChildTree();
         		childTree.pop_back();
         	}
-        	childTree.back().push_back(new Tree<SyntaxInfo>());
-			childTree.back().back()->val.syntaxFlag = SyntaxInfo::EXIT_CALL;
-			operandTree.back()->connectChild(childTree.back().back());
-        	childTree.back().pop_back();
         	if(sig && types.size() != sig->size()){
         		semanticError = true;
         		if(showingErrorMsgs){
