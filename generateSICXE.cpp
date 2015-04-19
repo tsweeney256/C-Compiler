@@ -5,6 +5,7 @@
 #include <iomanip>
 #include <cstdlib>
 #include <cstdio>
+#include <algorithm>
 #include "generateSICXE.hpp"
 #include "Tree.hpp"
 #include "SyntaxInfo.hpp"
@@ -19,7 +20,7 @@ namespace IntermediateCode
     	static const int bufSize = 32; //for converting integers into strings
 
     	void formattedOutput(const std::string& input, std::stringstream& output, int column);
-    	std::string operandPrefix(SyntaxAndPointer& operand);
+    	std::string operandPrefix(const SyntaxAndPointer& operand);
     	void handleExpression(int& varCounter, int& compCounter, SyntaxAndPointerStack& writeLater, std::stringstream& stream);
     	void printBinaryOperation(std::string op, int& varCounter, SyntaxAndPointerStack& writeLater, std::stringstream& output);
     	void printCompOperation(std::string op, bool notEq, bool alsoEQ, int& varCounter, int &compCounter,
@@ -63,7 +64,7 @@ namespace IntermediateCode
     		}
     	}
 
-        std::string operandPrefix(SyntaxAndPointer& operand)
+        std::string operandPrefix(const SyntaxAndPointer& operand)
         {
         	return (operand.first.syntaxFlag == SyntaxInfo::VAR ? (operand.second ? "@" : "") : "#");
         }
@@ -213,6 +214,7 @@ namespace IntermediateCode
         std::stack<int> writeWhileLableLater;
         std::stack<int> writeVarLabelLater;
         std::stack<SyntaxInfo> opStack;
+        std::stack<std::vector<std::string> > pointerVars; //solely for array parameters which are pass by reference
         bool isFuncVoid = false;
 
         writeLater.push(SyntaxAndPointerStack());
@@ -266,7 +268,11 @@ namespace IntermediateCode
             	}
                 writeLater.top().push_back(std::pair<SyntaxInfo, bool>(*it, false)); //gotta write parameters first
                 break;
+            case SyntaxInfo::EXIT_FUN_DEC:
+            	pointerVars.pop();
+            	break;
             case SyntaxInfo::PARAMS:
+            	pointerVars.push(std::vector<std::string>());
                 break;
             case SyntaxInfo::EXIT_PARAMS:
             	formattedOutput(writeLater.top().back().first.name, output, 1);
@@ -274,9 +280,14 @@ namespace IntermediateCode
                 writeLater.top().pop_back();
                 break;
             case SyntaxInfo::PARAM_DEC:
+            	formattedOutput(it->name, output, 1);
             	formattedOutput("FPRM", output, 2);
-            	if(it->typeFlag == SyntaxInfo::INT || it->typeFlag == SyntaxInfo::INT_ARRAY || it->typeFlag == SyntaxInfo::FLOAT_ARRAY){
-            		formattedOutput("1\n", output, 3); //ints are one word big and arrays are pass by reference and addresses are one word big
+            	if(it->typeFlag == SyntaxInfo::INT){
+            		formattedOutput("1\n", output, 3); //ints are one word big
+            	}
+            	else if(it->typeFlag == SyntaxInfo::INT_ARRAY || it->typeFlag == SyntaxInfo::FLOAT_ARRAY){
+            		formattedOutput("1\n", output, 3); //arrays are pass by reference and addresses are one word big
+            		pointerVars.top().push_back(it->name);
             	}
             	else{
             		formattedOutput("2\n", output, 3); //floats are two words big
@@ -379,7 +390,12 @@ namespace IntermediateCode
             case SyntaxInfo::INT_LITERAL:
             case SyntaxInfo::FLOAT_LITERAL:
             case SyntaxInfo::VAR:
-            	writeLater.top().push_back(SyntaxAndPointer(*it, false));
+            	if(std::find(pointerVars.top().begin(), pointerVars.top().end(), it->name) != pointerVars.top().end()){
+            		writeLater.top().push_back(SyntaxAndPointer(*it, true)); //is a reference to an array parameter
+            	}
+            	else{
+            		writeLater.top().push_back(SyntaxAndPointer(*it, false));
+            	}
             	handleExpression(varCounter, compCounter, writeLater.top(), output);
                 break;
             case SyntaxInfo::INDEX:
