@@ -28,6 +28,7 @@ struct SyntaxInfo
 		VAR_DEC,
 		ARRAY_DEC_SIZE,
 		FUN_DEC,
+		EXIT_FUN_DEC,
 		PARAMS,
 		EXIT_PARAMS,
 		PARAM_DEC,
@@ -92,6 +93,8 @@ struct SyntaxInfo
             return "ARRAY_DEC_SIZE";
 		case FUN_DEC:
 			return "FUN_DEC";
+		case EXIT_FUN_DEC:
+			return "EXIT_FUN_DEC";
 		case PARAMS:
 			return "PARAMS";
         case EXIT_PARAMS:

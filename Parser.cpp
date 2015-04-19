@@ -389,6 +389,10 @@ namespace Parser
             	}
             }
             childTree.back().back()->val.syntaxFlag = SyntaxInfo::FUN_DEC;
+            childTree.back().push_back(new Tree<SyntaxInfo>());
+            childTree.back().back()->val.syntaxFlag = SyntaxInfo::EXIT_FUN_DEC;
+            attachLastChildTree();
+            childTree.back().pop_back();
             return true;
         }
 
@@ -448,15 +452,10 @@ namespace Parser
             else{
                 return false;
             }
-            childTree.back().push_back(new Tree<SyntaxInfo>());
-            childTree.back().back()->val.syntaxFlag = SyntaxInfo::PARAM_DEC;
-            childTree.back().back()->val.typeFlag = baseType;
-            attachLastChildTree();
             nameDecl = currTok;
             if(!match(ID)){
                 return false;
             }
-            childTree.back().back()->val.name = std::string("_") + nameDecl;
             if(match("[")){
                 if(!match("]")){
                     return false;
@@ -468,6 +467,11 @@ namespace Parser
                 	baseType = SymbolTable::FLOAT_ARRAY;
                 }
             }
+            childTree.back().push_back(new Tree<SyntaxInfo>());
+            childTree.back().back()->val.syntaxFlag = SyntaxInfo::PARAM_DEC;
+            childTree.back().back()->val.typeFlag = baseType;
+            attachLastChildTree();
+            childTree.back().back()->val.name = std::string("_") + nameDecl;
             if(!(*symTabList.rbegin())->add(nameDecl, baseType)){
             	duplicateDecl = true;
 			}
