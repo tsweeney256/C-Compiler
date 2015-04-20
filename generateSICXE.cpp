@@ -117,6 +117,21 @@ namespace IntermediateCode
                 	formattedOutput(operandPrefix(writeLater.back()) + writeLater.back().first.name + "\n", output, 3);
                 	writeLater.pop_back();
                 	writeLater.pop_back();
+                	//if assigning to an array
+                	if(writeLater.back().first.syntaxFlag == SyntaxInfo::ASSIGNMENT){
+                		writeLater.pop_back(); //get rid of marker
+            			formattedOutput("+LDX", output, 2);
+            			formattedOutput(operandPrefix(writeLater.back()) + writeLater.back().first.name + "\n", output, 3);
+            			writeLater.pop_back();
+                    	if(writeLater.back().first.typeFlag == SyntaxInfo::INT){
+                    		formattedOutput("+STA", output, 2);
+                    	}
+                    	else{
+                    		formattedOutput("+STF", output, 2);
+                    	}
+            			formattedOutput(operandPrefix(writeLater.back()) + writeLater.back().first.name + ",X" + "\n", output, 3);
+            			writeLater.pop_back();
+                	}
                 	writeLater.push_back(lhs);
         			break;
         		}
@@ -554,18 +569,38 @@ namespace IntermediateCode
             {
             	int type = writeLater.top().back().first.typeFlag;
             	std::string array = operandPrefix(writeLater.top().back()) + writeLater.top().back().first.name;
+            	SyntaxAndPointer sapArray = writeLater.top().back();
+            	bool assigning = false;
+
+            	//if the array is the left hand side of an assignment statement
+            	if(it.getTree()->getParent()->getParent()->val.syntaxFlag == SyntaxInfo::ASSIGNMENT &&
+            			it.getTree()->getParent() == it.getTree()->getParent()->getParent()->getChild(0)){
+            		assigning = true;
+            	}
+            	else{
+            		assigning = false;
+            	}
 
             	writeLater.top().pop_back();
+            	SyntaxAndPointer idx = writeLater.top().back();
             	formattedOutput("+LDX", output, 2);
             	formattedOutput(operandPrefix(writeLater.top().back()) + writeLater.top().back().first.name + "\n", output, 3);
                 writeLater.pop();
+                if(assigning){ //dumb hack to get assigning to arrays to work
+                	SyntaxAndPointer operatorTemp = writeLater.top().back();
+                	writeLater.top().pop_back();
+                	writeLater.top().push_back(sapArray);
+                	writeLater.top().push_back(idx);
+                	writeLater.top().push_back(SyntaxAndPointer(SyntaxInfo(SyntaxInfo::ASSIGNMENT, -1, ""), false));
+                	writeLater.top().push_back(operatorTemp);
+                }
                 if(type == SyntaxInfo::INT){
                 	formattedOutput("+LDA", output, 2);
                 }
                 else{
                 	formattedOutput("+LDF", output, 2);
                 }
-                formattedOutput(array + ",X" + "\n", output, 3);
+                formattedOutput(array + ",X\n", output, 3);
                 writeVarLabelLater.push(varCounter);
                 {
                     SyntaxInfo temp;
@@ -589,7 +624,6 @@ namespace IntermediateCode
                 	formattedOutput(temp.str(), output, 3);
                 	handleExpression(varCounter, compCounter, writeLater.top(), vars, output);
                 }
-
                 break;
             }
             case SyntaxInfo::CALL:
