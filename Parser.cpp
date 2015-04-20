@@ -890,6 +890,8 @@ namespace Parser
         	std::string varName = nameDecl;
 
         	if(match("[")){
+        		int arrayType = exprType.back().first.back().back();
+
         		isArray = true;
         		childTree.push_back(std::vector<Tree<SyntaxInfo>*>());
         		childTree.back().push_back(new Tree<SyntaxInfo>());
@@ -897,13 +899,11 @@ namespace Parser
         		operandTree.push_back(childTree.back().back());
         		exprTypeLevel.push_back(-1);
                 operatorTrees.push_back(std::vector<Tree<SyntaxInfo>*>());
-				if(exprType.back().first.back().back() == SymbolTable::INT_ARRAY){
+				if(arrayType == SymbolTable::INT_ARRAY){
 					exprType.back().first.back().back() = SymbolTable::INT;
-					operandTree.back()->val.typeFlag = SymbolTable::INT;
 				}
-				else if(exprType.back().first.back().back() == SymbolTable::FLOAT_ARRAY){
+				else if(arrayType == SymbolTable::FLOAT_ARRAY){
 					exprType.back().first.back().back() = SymbolTable::FLOAT;
-					operandTree.back()->val.typeFlag = SymbolTable::FLOAT;
 				}
 				else{
 					semanticError = true;
@@ -921,6 +921,12 @@ namespace Parser
             		childTree.back().push_back(new Tree<SyntaxInfo>());
             		childTree.back().back()->val.syntaxFlag = SyntaxInfo::VAR;
             		childTree.back().back()->val.name = std::string("_") + varName;
+    				if(arrayType == SymbolTable::INT_ARRAY){
+    					childTree.back().back()->val.typeFlag = SymbolTable::INT;
+    				}
+    				else if(arrayType == SymbolTable::FLOAT_ARRAY){
+    					childTree.back().back()->val.typeFlag = SymbolTable::FLOAT;
+    				}
             		attachLastChildTree();
             		childTree.back().pop_back();
             		childTree.back().push_back(new Tree<SyntaxInfo>());
