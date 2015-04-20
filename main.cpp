@@ -48,15 +48,6 @@ int main(int argc, char* argv[])
 			exit(1);
 		}
 	}
-
-	if(argc == 3){
-		if(!strcmp("-e", argv[2])){
-			errorMsgsEnabled = true;
-		}
-		else{
-			std::cout << "unknown argument: " << argv[2] << std::endl;
-		}
-	}
 	std::fstream inputFile;
 	inputFile.open(inputFileLoc, std::fstream::in);
 	if(!inputFile.is_open()){
@@ -74,7 +65,7 @@ int main(int argc, char* argv[])
 		std::fstream sicFile;
 		sicFile.open(std::string(std::string(inputFileLoc) + std::string(".o.txt")).c_str(), std::ofstream::out);
 		IntermediateCode::generateSICXE(syntaxTree, sicFile);
-		std::cout << "sic file written" << std::endl;
+		//std::cout << "sic file written" << std::endl;
 	}
 	else{
 		std::cout << "REJECT" << std::endl;
