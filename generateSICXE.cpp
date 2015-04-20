@@ -575,6 +575,7 @@ namespace IntermediateCode
                     temp.name = I_Miss_CPP_11.str();
                     temp.typeFlag = type;
                     writeLater.top().push_back(SyntaxAndPointer(temp, false));
+                	vars.top().push(VarAndSize(writeLater.top().back().first, ""));
                 }
                 if(type == SyntaxInfo::INT){
                 	formattedOutput("+STA", output, 2);
@@ -588,6 +589,7 @@ namespace IntermediateCode
                 	formattedOutput(temp.str(), output, 3);
                 	handleExpression(varCounter, compCounter, writeLater.top(), vars, output);
                 }
+
                 break;
             }
             case SyntaxInfo::CALL:
