@@ -232,7 +232,7 @@ namespace IntermediateCode
         	writeLater.pop_back();
         	int type = writeLater.back().first.typeFlag;
 			if(type == SyntaxInfo::INT){
-				formattedOutput("+LDF", output, 2);
+				formattedOutput("+LDA", output, 2);
 			}
 			else{
 				formattedOutput("+LDF", output, 2);
