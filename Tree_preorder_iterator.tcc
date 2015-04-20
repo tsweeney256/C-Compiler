@@ -19,6 +19,8 @@ public:
 	T& operator*() const;
 	T* operator->() const;
 
+	Tree<T>* getTree();
+
 private:
 	Tree<T>* m_val;
 	Tree<T>* m_original; //just so decrementing end() can work...
@@ -152,5 +154,12 @@ T* Tree<T>::preorder_iterator::operator->() const
 {
 	return &m_val->val;
 }
+
+template <typename T>
+Tree<T>* Tree<T>::preorder_iterator::getTree()
+{
+	return m_val;
+}
+
 
 #endif
