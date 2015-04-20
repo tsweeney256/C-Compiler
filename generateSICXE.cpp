@@ -36,6 +36,7 @@ namespace IntermediateCode
 
     		bool needsToBeANewLine = false;
     		static bool wasNewLineLastTime = false; //well this just killed thread safety
+    		static bool wasLabelLastTime = false;
     		std::string inputCopy = input;
 
     		if(input[input.size()-1] == '\n'){
@@ -53,6 +54,9 @@ namespace IntermediateCode
     		else if(wasNewLineLastTime && column > 1){
     			output << std::setw(width) << std::left << " " << std::setw(width) << std::left << inputCopy;
     		}
+    		else if(wasLabelLastTime && column == 1){
+    			output << std::endl << std::setw(width) << std::left << inputCopy;
+    		}
     		else{
     			output << std::setw(width) << std::left << inputCopy;
     		}
@@ -63,6 +67,13 @@ namespace IntermediateCode
     		}
     		else{
     			wasNewLineLastTime = false;
+    		}
+
+    		if(column == 1){
+    			wasLabelLastTime = true;
+    		}
+    		else{
+    			wasLabelLastTime = false;
     		}
     	}
 
@@ -386,14 +397,9 @@ namespace IntermediateCode
             case SyntaxInfo::EXIT_COMPOUND_STMT:
             {
             	std::stringstream jbloc;
-            	if(depth > 1){
-					jbloc << "__JBLOC" << writeBlockJumpLater++;
-					formattedOutput("+J", output, 2);
-					formattedOutput(jbloc.str() + "\n", output, 3);
-            	}
-            	if(depth == 1){
-            		formattedOutput("FJBK\n", output, 2);
-            	}
+				jbloc << "__JBLOC" << writeBlockJumpLater++;
+				formattedOutput("+J", output, 2);
+				formattedOutput(jbloc.str() + "\n", output, 3);
             	while(!vars.top().empty()){
             		formattedOutput(vars.top().top().first.name, output, 1);
             		if(vars.top().top().first.typeFlag == SyntaxInfo::INT){
@@ -416,9 +422,10 @@ namespace IntermediateCode
             		}
             		vars.top().pop();
             	}
+            	formattedOutput(jbloc.str(), output, 1);
             	formattedOutput("EBLOC\n", output, 2);
-            	if(depth > 1){
-            		formattedOutput(jbloc.str(), output, 1);
+            	if(depth == 1){
+            		formattedOutput("FJBK\n", output, 2);
             	}
             	vars.pop();
             	--depth;
