@@ -451,7 +451,9 @@ namespace IntermediateCode
             case SyntaxInfo::STMT_LIST:
             	break;
             case SyntaxInfo::EXIT_EXPR_STMT:
-            	writeLater.top().pop_back();
+            	if(!writeLater.top().empty()){
+            		writeLater.top().pop_back();
+            	}
                 break;
             case SyntaxInfo::ASSIGNMENT:
             	writeLater.top().push_back(SyntaxAndPointer(*it, false));
@@ -637,13 +639,15 @@ namespace IntermediateCode
             	formattedOutput("FCLL", output, 2);
             	formattedOutput(writeLater.top().back().first.name + "\n", output, 3);
             	writeLater.top().pop_back();
-            	formattedOutput("SDR", output, 2);
-            	{
-            		std::stringstream temp;
-            		temp << "__t" << varCounter++;
-            		writeLater.top().push_back(SyntaxAndPointer(SyntaxInfo(SyntaxInfo::VAR, it->typeFlag, temp.str()), true));
-            		formattedOutput(temp.str() + "\n", output, 3);
-            		handleExpression(varCounter, compCounter, writeLater.top(), vars, output);
+            	if(it->typeFlag != SyntaxInfo::VOID){
+					formattedOutput("SDR", output, 2);
+					{
+						std::stringstream temp;
+						temp << "__t" << varCounter++;
+						writeLater.top().push_back(SyntaxAndPointer(SyntaxInfo(SyntaxInfo::VAR, it->typeFlag, temp.str()), true));
+						formattedOutput(temp.str() + "\n", output, 3);
+						handleExpression(varCounter, compCounter, writeLater.top(), vars, output);
+					}
             	}
             	break;
             case SyntaxInfo::ARG:
