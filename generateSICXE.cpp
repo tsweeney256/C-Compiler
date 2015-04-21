@@ -498,8 +498,12 @@ namespace IntermediateCode
                 writeIfLabelLater.pop();
                 break;
             case SyntaxInfo::WHILE:
-                formattedOutput("__LOOP", output, 1);
                 writeWhileLableLater.push(whileCounter++);
+                {
+                	std::stringstream temp;
+                	temp << "__LOOP" << writeWhileLableLater.top();
+                	formattedOutput(temp.str(), output, 1);
+                }
                 break;
             case SyntaxInfo::BEGIN_WHILE_STMT:
             {
