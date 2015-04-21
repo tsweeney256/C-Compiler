@@ -56,15 +56,15 @@ int main(int argc, char* argv[])
 	}
 	Tree<SyntaxInfo>* syntaxTree = Parser::parse(inputFile, errorMsgsEnabled);
 	if(syntaxTree){
-		std::cout << "ACCEPT" << std::endl;
+		//std::cout << "ACCEPT" << std::endl;
 		if(printTreeEnabled){
 			std::ofstream treeFile;
 			treeFile.open(std::string(std::string(inputFileLoc) + std::string(".tree.txt")).c_str(), std::ofstream::out);
 			syntaxTree->print(treeFile);
 		}
-		std::fstream sicFile;
-		sicFile.open(std::string(std::string(inputFileLoc) + std::string(".o.txt")).c_str(), std::ofstream::out);
-		IntermediateCode::generateSICXE(syntaxTree, sicFile);
+		//std::fstream sicFile;
+		//sicFile.open(std::string(std::string(inputFileLoc) + std::string(".o.txt")).c_str(), std::ofstream::out);
+		IntermediateCode::generateSICXE(syntaxTree, std::cout);
 		//std::cout << "sic file written" << std::endl;
 	}
 	else{
