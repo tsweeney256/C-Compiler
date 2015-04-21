@@ -1174,6 +1174,8 @@ namespace Parser
 
         bool call() //"(", args, ")";
         {
+        	std::string callName = nameDecl;
+
         	supposedToBeACall.push_back(false);
         	if(!currTok.compare("(")){
         		supposedToBeACall.back() = true;
@@ -1199,7 +1201,7 @@ namespace Parser
         	childTree.back().push_back(new Tree<SyntaxInfo>());
 			childTree.back().back()->val.syntaxFlag = SyntaxInfo::EXIT_CALL;
 			operandTree.back()->connectChild(childTree.back().back());
-			childTree.back().back()->val.typeFlag = peekInSymTabList(nameDecl);
+			childTree.back().back()->val.typeFlag = peekInSymTabList(callName);
         	childTree.back().pop_back();
         	supposedToBeACall.pop_back();
         	return true;
