@@ -645,6 +645,7 @@ namespace IntermediateCode
 						std::stringstream temp;
 						temp << "__t" << varCounter++;
 						writeLater.top().push_back(SyntaxAndPointer(SyntaxInfo(SyntaxInfo::VAR, it->typeFlag, temp.str()), true));
+						vars.top().push(VarAndSize(writeLater.top().back().first, ""));
 						formattedOutput(temp.str() + "\n", output, 3);
 						handleExpression(varCounter, compCounter, writeLater.top(), vars, output);
 					}
