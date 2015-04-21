@@ -1199,6 +1199,7 @@ namespace Parser
         	childTree.back().push_back(new Tree<SyntaxInfo>());
 			childTree.back().back()->val.syntaxFlag = SyntaxInfo::EXIT_CALL;
 			operandTree.back()->connectChild(childTree.back().back());
+			childTree.back().back()->val.typeFlag = peekInSymTabList(nameDecl);
         	childTree.back().pop_back();
         	supposedToBeACall.pop_back();
         	return true;

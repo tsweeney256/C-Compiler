@@ -637,7 +637,7 @@ namespace IntermediateCode
             	{
             		std::stringstream temp;
             		temp << "__t" << varCounter++;
-            		writeLater.top().push_back(SyntaxAndPointer(SyntaxInfo(SyntaxInfo::VAR, -1, temp.str()), true));
+            		writeLater.top().push_back(SyntaxAndPointer(SyntaxInfo(SyntaxInfo::VAR, it->typeFlag, temp.str()), true));
             		formattedOutput(temp.str() + "\n", output, 3);
             		handleExpression(varCounter, compCounter, writeLater.top(), vars, output);
             	}
@@ -647,7 +647,7 @@ namespace IntermediateCode
             	break;
             case SyntaxInfo::EXIT_ARG:
             	formattedOutput("FARG", output, 2);
-            	formattedOutput(operandPrefix(writeLater.top().back()) + writeLater.top().back().first.name + "\n", output, 3);
+            	formattedOutput(writeLater.top().back().first.name + "\n", output, 3);
             	writeLater.pop();
             	break;
             case SyntaxInfo::ADD:
