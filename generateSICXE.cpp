@@ -656,7 +656,7 @@ namespace IntermediateCode
             	break;
             case SyntaxInfo::EXIT_ARG:
             	formattedOutput("FARG", output, 2);
-            	formattedOutput(writeLater.top().back().first.name + "\n", output, 3);
+            	formattedOutput(operandPrefix(writeLater.top().back()) + writeLater.top().back().first.name + "\n", output, 3);
             	writeLater.pop();
             	break;
             case SyntaxInfo::ADD:
